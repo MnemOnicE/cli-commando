@@ -464,7 +464,12 @@ def search_command(base_command, headless=False, audit=False):
             return
 
         if not headless:
-            print(f"{MAGENTA}★ Running Kinetic Audit on '{base_command}' ★{RESET}")
+            print(f"{RED}{BOLD}WARNING: Audit mode will execute '{base_command}' to observe its behavior.{RESET}")
+            print(f"{RED}This is potentially destructive for commands like 'rm' or 'reboot'.{RESET}")
+            choice = input(f"{YELLOW}Proceed? (y/n): {RESET}").strip().lower()
+            if choice != 'y':
+                return
+            print(f"\n{MAGENTA}★ Running Kinetic Audit on '{base_command}' ★{RESET}")
 
         try:
             # Wrap the binary in a linux system call tracer to trace file, network, process syscalls
@@ -514,7 +519,6 @@ def search_command(base_command, headless=False, audit=False):
 
     while len(session_history) > 500:
         del session_history[next(iter(session_history))]
-    save_json(HISTORY_FILE, session_history)
 
     if base_command in all_known:
         data = all_known[base_command]
@@ -569,10 +573,21 @@ def search_command(base_command, headless=False, audit=False):
     if shutil.which(base_command):
         # Palette's tldr API Fallback
         try:
-            url = f"https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/common/{base_command}.md"
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=1.5) as response:
-                tldr_text = response.read().decode('utf-8')
+            tldr_text = None
+            urls = [
+                f"https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/common/{base_command}.md",
+                f"https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/linux/{base_command}.md"
+            ]
+            for url in urls:
+                try:
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=1.5) as response:
+                        tldr_text = response.read().decode('utf-8')
+                        break
+                except urllib.error.URLError:
+                    continue
+
+            if tldr_text:
                 tldr_lines = tldr_text.splitlines()
 
                 desc_lines = [l.strip(">").strip() for l in tldr_lines if l.startswith(">")]
@@ -720,7 +735,6 @@ def search_command(base_command, headless=False, audit=False):
 
     if session_history and list(session_history.keys())[-1] == base_command:
         del session_history[base_command]
-        save_json(HISTORY_FILE, session_history)
     pause()
 
 
@@ -863,6 +877,7 @@ def main_loop():
             if choice == 'y':
                 run_quiz()
             clear_screen()
+            save_json(HISTORY_FILE, session_history)
             print(f"{YELLOW}Exiting... Happy coding!{RESET}\n")
             break
 
@@ -876,25 +891,19 @@ if __name__ == "__main__":
     parser.add_argument('--json', action='store_true', help='Output in JSON format (headless mode)')
     parser.add_argument('--audit', action='store_true', help='Run kinetic audit using strace')
 
-    # We parse manually or with parse_known_args because the user might do `commando search <cmd>`
-    # The prompt specifically used `python commando.py search ffmpeg --json`
+    args, unknown = parser.parse_known_args()
 
-    args = sys.argv[1:]
-
-    if not args:
+    if not args.command and not unknown:
         main_loop()
     else:
-        headless = '--json' in args
-        audit_mode = '--audit' in args
-        if headless:
-            args.remove('--json')
-        if audit_mode:
-            args.remove('--audit')
+        headless = args.json
+        audit_mode = args.audit
+        cmd_list = args.command + unknown
 
-        if args and args[0] == 'search':
-            args.pop(0)
+        if cmd_list and cmd_list[0] == 'search':
+            cmd_list.pop(0)
 
-        if args:
-            search_command(' '.join(args), headless=headless, audit=audit_mode)
+        if cmd_list:
+            search_command(' '.join(cmd_list), headless=headless, audit=audit_mode)
         else:
             main_loop()

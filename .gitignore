@@ -1,0 +1,6 @@
+cli_commando.egg-info/
+__pycache__/
+build/
+dist/
+.commando/
+.pytest_cache/

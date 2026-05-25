@@ -955,7 +955,7 @@ complete -F _commando_completions commando''')
     if args.complete is not None:
         prefix = args.complete.lower()
         known = get_all_known_commands()
-        matches = [cmd for cmd in known.keys() if cmd.startswith(prefix)]
+        matches = [cmd for cmd in known.keys() if cmd.lower().startswith(prefix)]
         print(" ".join(matches))
         sys.exit(0)
 

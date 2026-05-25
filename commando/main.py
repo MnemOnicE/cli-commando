@@ -349,9 +349,8 @@ def auto_scan_system():
 
             if not success:
                 for line in lines:
-                    match = motif_dash.match(line)
-                    if match:
-                        description = match.group(1).strip()
+                    if motif_dash.match(line):
+                        description = motif_dash.match(line).group(1).strip()
                         success = True
                         break
 
@@ -478,37 +477,39 @@ def search_command(base_command, headless=False, audit=False):
             return
 
 
-    if audit and not headless:
-        print(f" {YELLOW}[Audit]{RESET} Running kinetic audit...")
+    if audit:
+        tags = set()
+        if not headless:
+            print(f" {YELLOW}[Audit]{RESET} Running kinetic audit...")
         try:
-            strace_check = subprocess.run(['which', 'strace'], capture_output=True, text=True)
-            if strace_check.returncode == 0:
+            if shutil.which('strace'):
                 audit_proc = subprocess.run(
                     ['strace', '-c', '-S', 'calls', base_command, '--help'],
                     capture_output=True, text=True, errors='replace', timeout=2
                 )
                 audit_out = audit_proc.stderr
                 if "openat" in audit_out or "read" in audit_out:
-                    tags.append("File Reader")
+                    tags.add("File Reader")
                 if "write" in audit_out:
-                    tags.append("File Writer")
+                    tags.add("File Writer")
                 if "socket" in audit_out or "connect" in audit_out:
-                    tags.append("Network Mutator")
+                    tags.add("Network Mutator")
                 if "execve" in audit_out or "clone" in audit_out:
-                    tags.append("Process Spawner")
+                    tags.add("Process Spawner")
             else:
                 raise FileNotFoundError("strace not found")
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError, Exception):
-            print(f" {YELLOW}[Audit]{RESET} strace failed/denied. Falling back to ldd static analysis...")
+            if not headless:
+                print(f" {YELLOW}[Audit]{RESET} strace failed/denied. Falling back to ldd static analysis...")
             try:
-                full_path = subprocess.run(['which', base_command], capture_output=True, text=True).stdout.strip()
+                full_path = shutil.which(base_command)
                 if full_path:
                     ldd_proc = subprocess.run(['ldd', full_path], capture_output=True, text=True, errors='replace')
                     ldd_out = ldd_proc.stdout.lower()
                     if "libssl" in ldd_out or "libcurl" in ldd_out or "libcrypto" in ldd_out:
-                        tags.append("Network Mutator")
+                        tags.add("Network Mutator")
                     if "libc." in ldd_out:
-                        tags.append("File Reader/Writer")
+                        tags.add("File Reader/Writer")
             except Exception:
                 pass
 
@@ -925,26 +926,19 @@ def cli():
     parser.add_argument('--json', action='store_true', help='Output in JSON format (headless mode)')
     parser.add_argument('--audit', action='store_true', help='Run kinetic audit using strace')
 
-    # Intercept -h / --help for argparse before we drop into manual parsing
-    if '-h' in sys.argv or '--help' in sys.argv:
-        parser.print_help()
-        sys.exit(0)
+    args = parser.parse_args()
 
-    args = sys.argv[1:]
+    headless = args.json
+    audit_mode = args.audit
+    command_args = args.command
 
-    if not args:
-        main_loop()
+    if command_args and command_args[0] == 'search':
+        command_args.pop(0)
+
+    if command_args:
+        search_command(' '.join(command_args), headless=headless, audit=audit_mode)
     else:
-        headless = '--json' in args
-        audit_mode = '--audit' in args
-        if headless: args.remove('--json')
-        if audit_mode: args.remove('--audit')
-        if args and args[0] == 'search': args.pop(0)
-
-        if args:
-            search_command(' '.join(args), headless=headless, audit=audit_mode)
-        else:
-            main_loop()
+        main_loop()
 
 if __name__ == "__main__":
     cli()

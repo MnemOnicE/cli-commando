@@ -68,7 +68,8 @@ class TestCommandoUtilities(unittest.TestCase):
         self.assertEqual(saved_content, data_to_save)
 
     def test_suggest_command(self):
-        """suggest_command has no testing to verify logic identifying close matches using difflib."""
+    def test_suggest_command(self):
+        """Test suggest_command to verify logic identifying close matches using difflib."""
         # Using a context manager or patching get_all_known_commands might be necessary
         # Let's import mock to patch get_all_known_commands
         from unittest.mock import patch

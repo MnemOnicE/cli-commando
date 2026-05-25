@@ -256,11 +256,13 @@ def auto_scan_system():
     system_bins_set = set()
 
     allowed_paths = ['/data/data/com.termux/files/usr/bin', '/system/bin', '/bin', '/usr/bin']
-    path_dirs = os.environ.get('PATH', '').split(os.pathsep)
-
+    raw_path_dirs = os.environ.get('PATH', '').split(os.pathsep)
+    path_dirs = []
+    for p in raw_path_dirs:
+        norm_p = os.path.realpath(os.path.normpath(os.path.expanduser(p)))
+        if norm_p in allowed_paths and norm_p not in path_dirs:
+            path_dirs.append(norm_p)
     for path_dir in path_dirs:
-        if path_dir not in allowed_paths:
-            continue
         if os.path.isdir(path_dir):
             for file in os.listdir(path_dir):
                 full_path = os.path.join(path_dir, file)

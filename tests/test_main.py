@@ -50,8 +50,7 @@ class TestCommandoUtilities(unittest.TestCase):
         self.assertEqual(result, default_val)
 
     def test_save_json(self):
-    def test_save_json(self):
-        """Test that save_json correctly writes dictionary content to a file."""
+        """No tests exist for save_json to ensure that dictionary content writes successfully to a file."""
         filepath = self.temp_dir_path / "test_save.json"
         data_to_save = {"test_key": "test_value", "nested": [1, 2, 3]}
 
@@ -69,8 +68,7 @@ class TestCommandoUtilities(unittest.TestCase):
         self.assertEqual(saved_content, data_to_save)
 
     def test_suggest_command(self):
-    def test_suggest_command(self):
-        """Test suggest_command to verify logic identifying close matches using difflib."""
+        """suggest_command has no testing to verify logic identifying close matches using difflib."""
         # Using a context manager or patching get_all_known_commands might be necessary
         # Let's import mock to patch get_all_known_commands
         from unittest.mock import patch

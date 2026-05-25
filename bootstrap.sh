@@ -45,7 +45,9 @@ $PYTHON_BIN -m venv venv
 
 # 4. Activation: Source the environment
 echo "==> Activating virtual environment..."
+set +u
 source venv/bin/activate
+set -u
 
 # 5. Core Upgrade: Update foundational build tools
 echo "==> Upgrading core tools (pip, build, setuptools)..."

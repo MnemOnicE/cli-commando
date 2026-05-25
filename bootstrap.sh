@@ -51,12 +51,7 @@ pip install -e .
 
 # 7. Validation: Execute the test suite
 echo "==> Validating installation by running tests..."
-set +e
-python -m unittest discover tests
-TEST_STATUS=$?
-set -e
-
-if [ $TEST_STATUS -ne 0 ]; then
+if ! python -m unittest discover tests; then
     echo "=========================================================================="
     echo "SEVERE WARNING: Test suite failed! The virtual environment is NOT stable."
     echo "=========================================================================="

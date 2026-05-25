@@ -349,8 +349,9 @@ def auto_scan_system():
 
             if not success:
                 for line in lines:
-                    if motif_dash.match(line):
-                        description = motif_dash.match(line).group(1).strip()
+                    match = motif_dash.match(line)
+                    if match:
+                        description = match.group(1).strip()
                         success = True
                         break
 

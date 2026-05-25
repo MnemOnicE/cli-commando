@@ -33,6 +33,12 @@ fi
 
 echo "==> Found Python $PYTHON_MAJOR.$PYTHON_MINOR"
 
+# Check for strictly required system commands
+if ! command -v strings > /dev/null 2>&1; then
+    echo "ERROR: 'strings' command is missing. It is strictly required for CLI-Commando's static analysis."
+    exit 1
+fi
+
 # 3. Isolation: Create the virtual environment
 echo "==> Creating virtual environment in 'venv'..."
 $PYTHON_BIN -m venv venv

@@ -11,6 +11,6 @@ If you are a security researcher and discover a vulnerability (for example, craf
 
 Please report any suspected vulnerabilities by emailing:
 
-**<INSERT_AUTHOR_SECURITY_EMAIL>**
+**security@commando.dev**
 
 You should receive a response within 48 hours. If the vulnerability is accepted, we will work with you to patch and securely release the fix before public disclosure.

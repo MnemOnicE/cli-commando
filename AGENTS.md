@@ -28,7 +28,7 @@ External agents and automated tooling rely on deterministic telemetry output. Wh
 ## 2. Concurrency & Performance
 
 - **Subprocess Sprawl:** When processing batches of operations (like `auto_scan_system`), sequential `subprocess.run` calls will choke single-threaded execution.
-- **The Constraint:** Use `concurrent.futures.ThreadPoolExecutor` for I/O bound execution, but **you must explicitly throttle it**. Never let it default to maximum workers.
+- **The Constraint:** Use `concurrent.futures.ThreadPoolExecutor` for I/O-bound execution, but **you must explicitly throttle it**. Never let it default to maximum workers.
 - **Rule:** Enforce a strict `max_workers=4` or `5`. This yields required concurrency for UI fluidity while respecting physical thermal and memory boundaries on constrained hardware (e.g., ARM devices).
 
 ## 3. Security & Containment Protocol

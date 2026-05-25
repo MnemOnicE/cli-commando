@@ -250,25 +250,30 @@ def auto_scan_system():
     print(f"{MAGENTA}★ System Auto-Scanner ★{RESET}\n")
     print(f"Scanning system PATH for unknown executables...")
 
-    all_known = get_all_known_commands()
-    system_bins = []
+    all_known_keys = set(get_all_known_commands().keys())
+    probe_blacklist_set = set(probe_blacklist)
+    pending_imports_set = set(pending_imports.keys())
+    system_bins_set = set()
 
     allowed_paths = ['/data/data/com.termux/files/usr/bin', '/system/bin', '/bin', '/usr/bin']
-    for path_dir in os.environ.get('PATH', '').split(os.pathsep):
+    path_dirs = os.environ.get('PATH', '').split(os.pathsep)
+
+    for path_dir in path_dirs:
         if path_dir not in allowed_paths:
             continue
         if os.path.isdir(path_dir):
             for file in os.listdir(path_dir):
                 full_path = os.path.join(path_dir, file)
                 if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                    if file not in all_known and file not in system_bins and file not in probe_blacklist and file not in pending_imports:
-                        system_bins.append(file)
+                    if file not in all_known_keys and file not in system_bins_set and file not in probe_blacklist_set and file not in pending_imports_set:
+                        system_bins_set.add(file)
 
-    if not system_bins:
+    if not system_bins_set:
         print(f"{GREEN}Wow! Your database maps every executable in your PATH.{RESET}")
         pause()
         return
 
+    system_bins = list(system_bins_set)
     batch_size = min(50, len(system_bins))
     scan_batch = random.sample(system_bins, batch_size)
 
@@ -284,13 +289,12 @@ def auto_scan_system():
     def scan_worker(cmd):
         # Find full path
         full_path = None
-        for path_dir in os.environ.get('PATH', '').split(os.pathsep):
+        for path_dir in path_dirs:
             if path_dir in allowed_paths:
                 candidate = os.path.join(path_dir, cmd)
                 if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
                     full_path = candidate
                     break
-
         if not full_path:
             return cmd, None
 

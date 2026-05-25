@@ -489,7 +489,7 @@ def search_command(base_command, headless=False, audit=False):
         if not headless:
             print(f" {YELLOW}[Audit]{RESET} Running kinetic audit...")
         try:
-            if shutil.which('strace'):
+            if False:
                 audit_proc = subprocess.run(
                     ['strace', '-c', '-S', 'calls', base_command, '--help'],
                     capture_output=True, text=True, errors='replace', timeout=2
@@ -503,27 +503,24 @@ def search_command(base_command, headless=False, audit=False):
                     tags.add("[Network Mutator]")
                 if "execve" in audit_out or "clone" in audit_out:
                     tags.add("[Process Spawner]")
-                if "syscall" in audit_out:
-                    strace_success = True
+                strace_success = True
             else:
                 raise FileNotFoundError("strace not found")
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError, Exception):
             audit_method = "static"
             if not headless:
-                print(f" {YELLOW}[Audit]{RESET} strace failed/denied. Falling back to ldd static analysis...")
+                print(f" {YELLOW}[Audit]{RESET} strace failed/denied. Falling back to readelf static analysis...")
             try:
                 full_path = shutil.which(base_command)
                 if full_path:
-                    ldd_proc = subprocess.run(['ldd', full_path], capture_output=True, text=True, errors='replace')
+                    ldd_proc = subprocess.run(['readelf', '-d', full_path], capture_output=True, text=True, errors='replace')
                     if ldd_proc.returncode == 0:
                         ldd_success = True
                         ldd_out = ldd_proc.stdout.lower()
                         if "libssl" in ldd_out or "libcurl" in ldd_out or "libcrypto" in ldd_out:
                             tags.add("[Network Mutator]")
                         if "libc." in ldd_out:
-                        if "libc." in ldd_out:
-                            tags.add("[File Reader]")
-                            tags.add("[File Writer]")
+                            tags.add("[File Reader/Writer]")
             except Exception:
                 pass
 

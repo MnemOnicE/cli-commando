@@ -503,7 +503,8 @@ def search_command(base_command, headless=False, audit=False):
                     tags.add("[Network Mutator]")
                 if "execve" in audit_out or "clone" in audit_out:
                     tags.add("[Process Spawner]")
-                strace_success = True
+                if "syscall" in audit_out:
+                    strace_success = True
             else:
                 raise FileNotFoundError("strace not found")
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError, Exception):

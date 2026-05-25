@@ -50,7 +50,8 @@ class TestCommandoUtilities(unittest.TestCase):
         self.assertEqual(result, default_val)
 
     def test_save_json(self):
-        """No tests exist for save_json to ensure that dictionary content writes successfully to a file."""
+    def test_save_json(self):
+        """Test that save_json correctly writes dictionary content to a file."""
         filepath = self.temp_dir_path / "test_save.json"
         data_to_save = {"test_key": "test_value", "nested": [1, 2, 3]}
 

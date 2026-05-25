@@ -4,6 +4,7 @@ import subprocess
 import shutil
 import random
 import sys
+import concurrent.futures
 import os
 import re
 import json
@@ -20,7 +21,7 @@ MAGENTA = '\033[95m'
 BOLD = '\033[1m'
 RESET = '\033[0m'
 
-BASE_DIR = Path.home() / ".bashlearn"
+BASE_DIR = Path.home() / ".commando"
 BASE_DIR.mkdir(exist_ok=True)
 
 HISTORY_FILE = BASE_DIR / "history.json"
@@ -80,7 +81,10 @@ def clear_screen():
     os.system('clear' if os.name == 'posix' else 'cls')
 
 def pause():
-    input(f"\n{YELLOW}Press Enter to continue...{RESET}")
+    try:
+        input(f"\n{YELLOW}Press Enter to continue...{RESET}")
+    except (EOFError, KeyboardInterrupt):
+        print()
 
 def suggest_command(bad_cmd):
     known_cmds = list(get_all_known_commands().keys())
@@ -265,7 +269,6 @@ def auto_scan_system():
         pause()
         return
 
-    # Bumped the batch size up to 50
     batch_size = min(50, len(system_bins))
     scan_batch = random.sample(system_bins, batch_size)
 
@@ -277,21 +280,25 @@ def auto_scan_system():
         "not found", "no such file", "command not found",
         "can't locate", "no module named", "traceback", "exception"
     ]
-    reject_chars = ["[", "---", "<"]
 
-    for cmd in scan_batch:
+    def scan_worker(cmd):
+        # Find full path
+        full_path = None
+        for path_dir in os.environ.get('PATH', '').split(os.pathsep):
+            if path_dir in allowed_paths:
+                candidate = os.path.join(path_dir, cmd)
+                if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                    full_path = candidate
+                    break
+
+        if not full_path:
+            return cmd, None
+
         # Layer 1: OS Query
         try:
             process = subprocess.run(['whatis', cmd], capture_output=True, text=True, errors='replace', check=True)
             desc = process.stdout.strip()
-            pending_imports[cmd] = {
-                "desc": desc,
-                "example": f"{cmd} --help",
-                "category": "Auto-Imported Libs"
-            }
-            print(f" {GREEN}[+]{RESET} Added to pending (OS Manual): {CYAN}{cmd}{RESET}")
-            successful_imports += 1
-            continue
+            return cmd, {"desc": desc, "example": f"{cmd} --help", "category": "Auto-Imported Libs", "source": "OS Manual"}
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass
 
@@ -299,35 +306,37 @@ def auto_scan_system():
             process = subprocess.run(['bash', '-c', 'help -d "$1"', '_', cmd], capture_output=True, text=True, errors='replace', check=True)
             desc = process.stdout.strip()
             if desc:
-                pending_imports[cmd] = {
-                    "desc": desc,
-                    "example": f"{cmd} --help",
-                    "category": "Auto-Imported Libs"
-                }
-                print(f" {GREEN}[+]{RESET} Added to pending (Built-in): {CYAN}{cmd}{RESET}")
-                successful_imports += 1
-                continue
+                return cmd, {"desc": desc, "example": f"{cmd} --help", "category": "Auto-Imported Libs", "source": "Built-in"}
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass
 
-        # Layer 2: Execution Fallback
+        # Layer 2: Static Analysis (Sentinel's Containment Protocol)
         try:
-            process = subprocess.run([cmd, '--help'], capture_output=True, text=True, errors='replace', timeout=0.2)
-            output = process.stdout + process.stderr
-            lines = [line.strip() for line in output.splitlines() if line.strip()]
+            with open(full_path, 'rb') as f:
+                header = f.read(4)
 
-            success = False
+            lines = []
+            if header == b'\x7fELF':
+                process = subprocess.run(['strings', full_path], capture_output=True, text=True, errors='replace')
+                lines = [line.strip() for line in process.stdout.splitlines() if line.strip()]
+            elif header.startswith(b'#!'):
+                with open(full_path, 'r', errors='replace') as f:
+                    lines = [line.strip() for line in f.readlines() if line.strip()]
+            else:
+                return cmd, None
+
+            if not lines:
+                return cmd, None
+
             description = "An installed program. No readable description found."
             example_str = f"{cmd} --help"
+            success = False
 
-            # Boom's regex motifs (Examples-First Priority)
             motif_dash = re.compile(r"(?i)^\s*" + re.escape(cmd) + r"\s+-\s+(.*)")
 
-            # Try to find an example block
             for i, line in enumerate(lines):
                 lower_line = line.lower()
                 if "example:" in lower_line or "examples:" in lower_line or "usage:" in lower_line:
-                    # Look at next few lines for the actual command snippet
                     for j in range(1, 4):
                         if i+j < len(lines):
                             candidate = lines[i+j].strip()
@@ -335,50 +344,57 @@ def auto_scan_system():
                                 example_str = candidate
                                 success = True
                                 break
-                    if success:
-                        break
-
-            # Now find description
-            for line in lines[:20]:
-                match_dash = motif_dash.search(line)
-                if match_dash:
-                    description = match_dash.group(1).strip()
-                    success = True
+                if success:
                     break
 
             if not success:
-                for line in lines[:20]:
-                    lower_line = line.lower()
-                    if len(line) > 15 and not any(t in lower_line for t in reject_terms) and not any(c in line for c in reject_chars) and not line.strip().startswith("-"):
-                        description = f"[Low Confidence] {line}"
+                for line in lines:
+                    if motif_dash.match(line):
+                        description = motif_dash.match(line).group(1).strip()
                         success = True
                         break
 
-            if success:
-                pending_imports[cmd] = {
-                    "desc": description,
-                    "example": example_str,
-                    "category": "Auto-Imported Libs"
-                }
-                print(f" {GREEN}[+]{RESET} Added to pending (Regex/Heuristic): {CYAN}{cmd}{RESET}")
-                successful_imports += 1
-
             if not success:
-                probe_blacklist.append(cmd)
-                write_log(cmd, "Heuristic Reject", output)
+                for line in lines:
+                    lower = line.lower()
+                    if cmd in lower and len(line) > 15 and not any(r in lower for r in ["[", "---", "<"]):
+                        description = line
+                        success = True
+                        break
 
-        except subprocess.TimeoutExpired as e:
-            probe_blacklist.append(cmd)
-            write_log(cmd, "Timeout (Likely interactive)", "")
+            if success and len(description) < 200:
+                if not any(r in description.lower() for r in reject_terms):
+                    return cmd, {"desc": description, "example": example_str, "category": "Auto-Imported Libs", "source": "Static Analysis"}
         except Exception as e:
+            return cmd, {"error": str(e)}
+
+        return cmd, None
+
+    # Bolt's Issue: Throttle ThreadPoolExecutor
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        results = executor.map(scan_worker, scan_batch)
+
+    for cmd, res in results:
+        if res:
+            if "error" in res:
+                print(f" {YELLOW}[~]{RESET} Skipped {cmd}: Error during scan - {res['error']}")
+                continue
+            pending_imports[cmd] = {
+                "desc": res["desc"],
+                "example": res["example"],
+                "category": res["category"]
+            }
+            print(f" {GREEN}[+]{RESET} Added to pending ({res['source']}): {CYAN}{cmd}{RESET}")
+            successful_imports += 1
+        else:
             probe_blacklist.append(cmd)
-            write_log(cmd, "Execution Error", str(e))
+            print(f" {RED}[-]{RESET} Added to blacklist (No info found): {RED}{cmd}{RESET}")
 
     if successful_imports > 0:
         save_json(PENDING_DICT_FILE, pending_imports)
-        print(f"\n{GREEN}Successfully harvested {successful_imports} new commands!{RESET}")
+        print(f"\n{GREEN}Scan Complete! Found {successful_imports} new potential commands.{RESET}")
     else:
-        print(f"\n{YELLOW}Sweep finished. Tested tools were either interactive or lacked definitions.{RESET}")
+        print(f"\n{YELLOW}Scan Complete! No usable descriptions found. (Added to blacklist){RESET}")
 
     save_json(BLACKLIST_FILE, probe_blacklist)
     pause()
@@ -462,6 +478,43 @@ def search_command(base_command, headless=False, audit=False):
             else:
                 print(f"{RED}Error:{RESET} Audit failed, '{base_command}' not found in PATH.")
             return
+
+
+    if audit:
+        tags = set()
+        if not headless:
+            print(f" {YELLOW}[Audit]{RESET} Running kinetic audit...")
+        try:
+            if shutil.which('strace'):
+                audit_proc = subprocess.run(
+                    ['strace', '-c', '-S', 'calls', base_command, '--help'],
+                    capture_output=True, text=True, errors='replace', timeout=2
+                )
+                audit_out = audit_proc.stderr
+                if "openat" in audit_out or "read" in audit_out:
+                    tags.add("File Reader")
+                if "write" in audit_out:
+                    tags.add("File Writer")
+                if "socket" in audit_out or "connect" in audit_out:
+                    tags.add("Network Mutator")
+                if "execve" in audit_out or "clone" in audit_out:
+                    tags.add("Process Spawner")
+            else:
+                raise FileNotFoundError("strace not found")
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError, Exception):
+            if not headless:
+                print(f" {YELLOW}[Audit]{RESET} strace failed/denied. Falling back to ldd static analysis...")
+            try:
+                full_path = shutil.which(base_command)
+                if full_path:
+                    ldd_proc = subprocess.run(['ldd', full_path], capture_output=True, text=True, errors='replace')
+                    ldd_out = ldd_proc.stdout.lower()
+                    if "libssl" in ldd_out or "libcurl" in ldd_out or "libcrypto" in ldd_out:
+                        tags.add("Network Mutator")
+                    if "libc." in ldd_out:
+                        tags.add("File Reader/Writer")
+            except Exception:
+                pass
 
         if not headless:
             print(f"{MAGENTA}★ Running Kinetic Audit on '{base_command}' ★{RESET}")
@@ -869,32 +922,26 @@ def main_loop():
         command_tokens = raw_input.lower().split()
         search_command(command_tokens[0])
 
-if __name__ == "__main__":
+def cli():
     import argparse
     parser = argparse.ArgumentParser(description="cli-commando")
     parser.add_argument('command', nargs='*', help='Command to search for or execute')
     parser.add_argument('--json', action='store_true', help='Output in JSON format (headless mode)')
     parser.add_argument('--audit', action='store_true', help='Run kinetic audit using strace')
 
-    # We parse manually or with parse_known_args because the user might do `commando search <cmd>`
-    # The prompt specifically used `python commando.py search ffmpeg --json`
+    args = parser.parse_args()
 
-    args = sys.argv[1:]
+    headless = args.json
+    audit_mode = args.audit
+    command_args = args.command
 
-    if not args:
-        main_loop()
+    if command_args and command_args[0] == 'search':
+        command_args.pop(0)
+
+    if command_args:
+        search_command(' '.join(command_args), headless=headless, audit=audit_mode)
     else:
-        headless = '--json' in args
-        audit_mode = '--audit' in args
-        if headless:
-            args.remove('--json')
-        if audit_mode:
-            args.remove('--audit')
+        main_loop()
 
-        if args and args[0] == 'search':
-            args.pop(0)
-
-        if args:
-            search_command(' '.join(args), headless=headless, audit=audit_mode)
-        else:
-            main_loop()
+if __name__ == "__main__":
+    cli()

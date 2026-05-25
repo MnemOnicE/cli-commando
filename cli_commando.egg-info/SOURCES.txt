@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+cli_commando.egg-info/PKG-INFO
+cli_commando.egg-info/SOURCES.txt
+cli_commando.egg-info/dependency_links.txt
+cli_commando.egg-info/entry_points.txt
+cli_commando.egg-info/top_level.txt
+commando/__init__.py
+commando/main.py

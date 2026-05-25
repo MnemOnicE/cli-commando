@@ -1,3 +1,12 @@
+Metadata-Version: 2.4
+Name: cli-commando
+Version: 0.1.0
+Summary: Terminal Command Explorer & Tutor
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
 # CLI-Commando
 
 **CLI-Commando** is your terminal command explorer and tutor. It learns the commands you actually use, mapping the CLI landscape dynamically, and providing helpful usage examples directly when you need them.
@@ -20,19 +29,13 @@ CLI-Commando transitions from dynamic probing to secure, defensive scanning:
 ## Installation
 
 For standard installation:
-
 ```bash
-
 pip install .
-
 ```
 
 For active development (editable mode):
-
 ```bash
-
 pip install -e .
-
 ```
 
 *(Note: Ensure your `~/.local/bin` or equivalent Python bin directory is in your system's `$PATH` for the OS to recognize the `commando` command globally).*
@@ -40,25 +43,16 @@ pip install -e .
 ## Usage
 
 Start the interactive terminal dashboard:
-
 ```bash
-
 commando
-
 ```
 
 Search for a specific command immediately:
-
 ```bash
-
 commando search <command>
-
 ```
 
 Run a kinetic audit to see exactly what an executable does under the hood:
-
 ```bash
-
 commando search <command> --audit
-
 ```

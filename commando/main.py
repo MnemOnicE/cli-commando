@@ -23,7 +23,7 @@ MAGENTA = '\033[95m'
 BOLD = '\033[1m'
 RESET = '\033[0m'
 
-if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
+if sys.stdout is None or not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
     CYAN = ''
     GREEN = ''
     YELLOW = ''

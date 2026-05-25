@@ -43,7 +43,7 @@ source venv/bin/activate
 
 # 5. Core Upgrade: Update foundational build tools
 echo "==> Upgrading core tools (pip, build, setuptools)..."
-pip install --upgrade pip build setuptools
+python -m pip install --upgrade pip build setuptools
 
 # 6. Injection: Perform the editable installation
 echo "==> Installing project in editable mode..."

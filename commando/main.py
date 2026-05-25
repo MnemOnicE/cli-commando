@@ -521,7 +521,9 @@ def search_command(base_command, headless=False, audit=False):
                         if "libssl" in ldd_out or "libcurl" in ldd_out or "libcrypto" in ldd_out:
                             tags.add("[Network Mutator]")
                         if "libc." in ldd_out:
-                            tags.add("[File Reader/Writer]")
+                        if "libc." in ldd_out:
+                            tags.add("[File Reader]")
+                            tags.add("[File Writer]")
             except Exception:
                 pass
 

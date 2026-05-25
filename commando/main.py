@@ -489,7 +489,7 @@ def search_command(base_command, headless=False, audit=False):
         if not headless:
             print(f" {YELLOW}[Audit]{RESET} Running kinetic audit...")
         try:
-            if False:
+            if shutil.which('strace'):
                 audit_proc = subprocess.run(
                     ['strace', '-c', '-S', 'calls', base_command, '--help'],
                     capture_output=True, text=True, errors='replace', timeout=2

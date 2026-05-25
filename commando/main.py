@@ -365,8 +365,8 @@ def auto_scan_system():
             if success and len(description) < 200:
                 if not any(r in description.lower() for r in reject_terms):
                     return cmd, {"desc": description, "example": example_str, "category": "Auto-Imported Libs", "source": "Static Analysis"}
-        except Exception:
-            pass
+        except Exception as e:
+            return cmd, {"error": str(e)}
 
         return cmd, None
 
@@ -376,6 +376,9 @@ def auto_scan_system():
 
     for cmd, res in results:
         if res:
+            if "error" in res:
+                print(f" {YELLOW}[~]{RESET} Skipped {cmd}: Error during scan - {res['error']}")
+                continue
             pending_imports[cmd] = {
                 "desc": res["desc"],
                 "example": res["example"],

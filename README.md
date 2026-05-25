@@ -20,13 +20,19 @@ CLI-Commando transitions from dynamic probing to secure, defensive scanning:
 ## Installation
 
 For standard installation:
+
 ```bash
+
 pip install .
+
 ```
 
 For active development (editable mode):
+
 ```bash
+
 pip install -e .
+
 ```
 
 *(Note: Ensure your `~/.local/bin` or equivalent Python bin directory is in your system's `$PATH` for the OS to recognize the `commando` command globally).*
@@ -34,16 +40,25 @@ pip install -e .
 ## Usage
 
 Start the interactive terminal dashboard:
+
 ```bash
+
 commando
+
 ```
 
 Search for a specific command immediately:
+
 ```bash
+
 commando search <command>
+
 ```
 
 Run a kinetic audit to see exactly what an executable does under the hood:
+
 ```bash
+
 commando search <command> --audit
+
 ```

@@ -47,7 +47,7 @@ pip install --upgrade pip build setuptools
 
 # 6. Injection: Perform the editable installation
 echo "==> Installing project in editable mode..."
-pip install -e .
+python -m pip install -e .
 
 # 7. Validation: Execute the test suite
 echo "==> Validating installation by running tests..."

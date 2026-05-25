@@ -12,6 +12,8 @@ import difflib
 from datetime import datetime
 from pathlib import Path
 
+GITHUB_API_BANNED = False
+
 # ANSI Escape Codes
 CYAN = '\033[96m'
 GREEN = '\033[92m'
@@ -20,6 +22,15 @@ RED = '\033[91m'
 MAGENTA = '\033[95m'
 BOLD = '\033[1m'
 RESET = '\033[0m'
+
+if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
+    CYAN = ''
+    GREEN = ''
+    YELLOW = ''
+    RED = ''
+    MAGENTA = ''
+    BOLD = ''
+    RESET = ''
 
 BASE_DIR = Path.home() / ".commando"
 BASE_DIR.mkdir(exist_ok=True)
@@ -60,6 +71,12 @@ def save_json(filepath, data):
 
 def write_log(cmd, reason, raw_output=""):
     """Writes failed probes to the debug log."""
+    if DEBUG_LOG_FILE.exists() and DEBUG_LOG_FILE.stat().st_size > 1048576:
+        try:
+            DEBUG_LOG_FILE.rename(DEBUG_LOG_FILE.with_suffix('.log.1'))
+        except Exception:
+            pass
+
     timestamp = datetime.now().strftime("%H:%M:%S")
     with open(DEBUG_LOG_FILE, "a") as f:
         f.write(f"[{timestamp}] {cmd} | {reason}\n")
@@ -610,12 +627,14 @@ def search_command(base_command, headless=False, audit=False):
 
     if shutil.which(base_command):
         # Palette's tldr API Fallback
-        try:
-            url = f"https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/common/{base_command}.md"
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=1.5) as response:
-                tldr_text = response.read().decode('utf-8')
-                tldr_lines = tldr_text.splitlines()
+        global GITHUB_API_BANNED
+        if not GITHUB_API_BANNED:
+            try:
+                url = f"https://raw.githubusercontent.com/tldr-pages/tldr/main/pages/common/{base_command}.md"
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=1.5) as response:
+                    tldr_text = response.read().decode('utf-8')
+                    tldr_lines = tldr_text.splitlines()
 
                 desc_lines = [l.strip(">").strip() for l in tldr_lines if l.startswith(">")]
                 desc = " ".join(desc_lines) if desc_lines else f"A command ({base_command})"
@@ -641,10 +660,13 @@ def search_command(base_command, headless=False, audit=False):
                 if not headless:
                     pause()
                 return
-        except urllib.error.URLError:
-            pass
-        except Exception:
-            pass
+            except urllib.error.HTTPError as e:
+                if e.code == 429:
+                    GITHUB_API_BANNED = True
+            except urllib.error.URLError:
+                pass
+            except Exception:
+                pass
 
         try:
             process = subprocess.run([base_command, '--help'], capture_output=True, text=True, errors='replace', timeout=2)
@@ -917,8 +939,25 @@ def cli():
     parser.add_argument('command', nargs='*', help='Command to search for or execute')
     parser.add_argument('--json', action='store_true', help='Output in JSON format (headless mode)')
     parser.add_argument('--audit', action='store_true', help='Run kinetic audit using strace')
+    parser.add_argument('--generate-completion', action='store_true', help='Generate bash completion script')
+    parser.add_argument('--complete', type=str, help=argparse.SUPPRESS)
 
     args = parser.parse_args()
+
+    if args.generate_completion:
+        print('''_commando_completions() {
+    local curr_arg=${COMP_WORDS[COMP_CWORD]}
+    COMPREPLY=( $(commando --complete "$curr_arg") )
+}
+complete -F _commando_completions commando''')
+        sys.exit(0)
+
+    if args.complete is not None:
+        prefix = args.complete.lower()
+        known = get_all_known_commands()
+        matches = [cmd for cmd in known.keys() if cmd.startswith(prefix)]
+        print(" ".join(matches))
+        sys.exit(0)
 
     headless = args.json
     audit_mode = args.audit

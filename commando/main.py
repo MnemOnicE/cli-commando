@@ -482,6 +482,10 @@ def search_command(base_command, headless=False, audit=False):
 
     if audit:
         tags = set()
+        audit_method = "kinetic"
+        strace_success = False
+        ldd_success = False
+
         if not headless:
             print(f" {YELLOW}[Audit]{RESET} Running kinetic audit...")
         try:
@@ -492,67 +496,46 @@ def search_command(base_command, headless=False, audit=False):
                 )
                 audit_out = audit_proc.stderr
                 if "openat" in audit_out or "read" in audit_out:
-                    tags.add("File Reader")
+                    tags.add("[File Reader]")
                 if "write" in audit_out:
-                    tags.add("File Writer")
+                    tags.add("[File Writer]")
                 if "socket" in audit_out or "connect" in audit_out:
-                    tags.add("Network Mutator")
+                    tags.add("[Network Mutator]")
                 if "execve" in audit_out or "clone" in audit_out:
-                    tags.add("Process Spawner")
+                    tags.add("[Process Spawner]")
+                strace_success = True
             else:
                 raise FileNotFoundError("strace not found")
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError, Exception):
+            audit_method = "static"
             if not headless:
                 print(f" {YELLOW}[Audit]{RESET} strace failed/denied. Falling back to ldd static analysis...")
             try:
                 full_path = shutil.which(base_command)
                 if full_path:
                     ldd_proc = subprocess.run(['ldd', full_path], capture_output=True, text=True, errors='replace')
-                    ldd_out = ldd_proc.stdout.lower()
-                    if "libssl" in ldd_out or "libcurl" in ldd_out or "libcrypto" in ldd_out:
-                        tags.add("Network Mutator")
-                    if "libc." in ldd_out:
-                        tags.add("File Reader/Writer")
+                    if ldd_proc.returncode == 0:
+                        ldd_success = True
+                        ldd_out = ldd_proc.stdout.lower()
+                        if "libssl" in ldd_out or "libcurl" in ldd_out or "libcrypto" in ldd_out:
+                            tags.add("[Network Mutator]")
+                        if "libc." in ldd_out:
+                            tags.add("[File Reader/Writer]")
             except Exception:
                 pass
 
-        if not headless:
-            print(f"{MAGENTA}★ Running Kinetic Audit on '{base_command}' ★{RESET}")
+        if not strace_success and not ldd_success:
+            tags.add('[Telemetry Failed]')
 
-        try:
-            # Wrap the binary in a linux system call tracer to trace file, network, process syscalls
-            process = subprocess.run(
-                ['strace', '-e', 'trace=file,network,process', 'timeout', '0.5s', base_command],
-                capture_output=True, text=True, errors='replace'
-            )
-            out = process.stderr # strace outputs to stderr
+        tag_str = ", ".join(tags) if tags else "[Pure Compute / Minimal Syscalls]"
 
-            tags = set()
-            if '/dev/' in out:
-                tags.add('[Hardware Interfacing]')
-            if 'socket(' in out or 'connect(' in out or 'bind(' in out:
-                tags.add('[Network Mutator]')
-            if 'clone(' in out or 'execve(' in out or 'fork(' in out:
-                tags.add('[Process Spawner]')
-            if 'openat(' in out or 'open(' in out:
-                tags.add('[File Reader/Writer]')
-
-            tag_str = ", ".join(tags) if tags else "[Pure Compute / Minimal Syscalls]"
-
-            if headless:
-                print(json.dumps({"command": base_command, "status": "audited", "kinetic_tags": list(tags)}))
-            else:
-                print(f"{CYAN}Audit Results for:{RESET} {base_command}")
-                print(f"Tags: {YELLOW}{tag_str}{RESET}")
-                pause()
-            return
-        except FileNotFoundError:
-            if headless:
-                print(json.dumps({"command": base_command, "status": "error", "desc": "strace not installed"}))
-            else:
-                print(f"{RED}Error:{RESET} 'strace' is required for audit mode but not installed.")
-                pause()
-            return
+        if headless:
+            print(json.dumps({"command": base_command, "status": "audited", "kinetic_tags": list(tags), "audit_method": audit_method}))
+        else:
+            print(f"{CYAN}Audit Results for:{RESET} {base_command}")
+            print(f"Tags: {YELLOW}{tag_str}{RESET}")
+            pause()
+        return
 
     if not headless:
         clear_screen()

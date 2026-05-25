@@ -73,7 +73,7 @@ def write_log(cmd, reason, raw_output=""):
     """Writes failed probes to the debug log."""
     if DEBUG_LOG_FILE.exists() and DEBUG_LOG_FILE.stat().st_size > 1048576:
         try:
-            DEBUG_LOG_FILE.rename(DEBUG_LOG_FILE.with_suffix('.log.1'))
+            DEBUG_LOG_FILE.replace(DEBUG_LOG_FILE.with_suffix('.log.1'))
         except Exception:
             pass
 

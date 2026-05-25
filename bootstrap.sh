@@ -7,7 +7,7 @@ echo "==> Starting bootstrap process..."
 if [ -n "${TERMUX_VERSION:-}" ] || [ -d "/data/data/com.termux/files/usr" ]; then
     echo "==> Termux environment detected."
     for pkg in python clang make; do
-        if ! command -v $pkg > /dev/null 2>&1; then
+        if ! command -v "$pkg" > /dev/null 2>&1; then
             echo "WARNING: Required system package '$pkg' is missing. Please install it using 'pkg install $pkg'."
         fi
     done
@@ -33,33 +33,34 @@ fi
 
 echo "==> Found Python $PYTHON_MAJOR.$PYTHON_MINOR"
 
-# Check for strictly required system commands
-if ! command -v strings > /dev/null 2>&1; then
-    echo "ERROR: 'strings' command is missing. It is strictly required for CLI-Commando's static analysis."
-    exit 1
-fi
-
 # 3. Isolation: Create the virtual environment
-echo "==> Creating virtual environment in 'venv'..."
-$PYTHON_BIN -m venv venv
+if [ -d "venv" ] && [ -f "venv/bin/activate" ]; then
+    echo "==> Virtual environment 'venv' already exists. Skipping creation."
+else
+    echo "==> Creating virtual environment in 'venv'..."
+    $PYTHON_BIN -m venv venv
+fi
 
 # 4. Activation: Source the environment
 echo "==> Activating virtual environment..."
-set +u
 source venv/bin/activate
-set -u
 
 # 5. Core Upgrade: Update foundational build tools
 echo "==> Upgrading core tools (pip, build, setuptools)..."
-python -m pip install --upgrade pip build setuptools
+pip install --upgrade pip build setuptools
 
 # 6. Injection: Perform the editable installation
 echo "==> Installing project in editable mode..."
-python -m pip install -e .
+pip install -e .
 
 # 7. Validation: Execute the test suite
 echo "==> Validating installation by running tests..."
-if ! python -m unittest discover tests; then
+set +e
+python -m unittest discover tests
+TEST_STATUS=$?
+set -e
+
+if [ $TEST_STATUS -ne 0 ]; then
     echo "=========================================================================="
     echo "SEVERE WARNING: Test suite failed! The virtual environment is NOT stable."
     echo "=========================================================================="

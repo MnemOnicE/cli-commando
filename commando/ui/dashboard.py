@@ -91,6 +91,8 @@ def factory_reset(state_manager):
         state_manager.session_history = {}
         state_manager.custom_guide = {}
         state_manager.probe_blacklist = []
+        state_manager.pending_imports = {}
+        save_json(PENDING_DICT_FILE, state_manager.pending_imports)
         save_json(HISTORY_FILE, state_manager.session_history)
         save_json(CUSTOM_DICT_FILE, state_manager.custom_guide)
         save_json(BLACKLIST_FILE, state_manager.probe_blacklist)

@@ -1,14 +1,20 @@
 import json
-import shutil
-import subprocess
 import os
+import shutil
 import signal
-import time
-import re
+import subprocess
+
 from commando.utils.io import (
-    CYAN, GREEN, YELLOW, RED, MAGENTA, BOLD, RESET,
-    save_json, write_log, pause
+    BOLD,
+    CYAN,
+    GREEN,
+    MAGENTA,
+    RED,
+    RESET,
+    YELLOW,
+    pause,
 )
+
 
 def analyze_strace_output(output):
     kinetic_tags = set()
@@ -20,6 +26,7 @@ def analyze_strace_output(output):
         kinetic_tags.add("[Process Spawner]")
     return list(kinetic_tags)
 
+
 def analyze_ldd_output(output):
     kinetic_tags = set()
     if "libssl" in output or "libcurl" in output:
@@ -28,11 +35,12 @@ def analyze_ldd_output(output):
         kinetic_tags.add("[File Reader/Writer]")
     return list(kinetic_tags)
 
-def search_command(base_command, state_manager, scanner_module, headless=False, audit=False):
+
+def search_command(
+    base_command, state_manager, scanner_module, headless=False, audit=False
+):
     session_history = state_manager.session_history
-    custom_guide = state_manager.custom_guide
     probe_blacklist = state_manager.probe_blacklist
-    pending_imports = state_manager.pending_imports
     all_known = state_manager.get_all_known_commands()
 
     if not headless:
@@ -50,11 +58,18 @@ def search_command(base_command, state_manager, scanner_module, headless=False, 
             # BOOM fix: process group obliteration with fallback
             try:
                 proc = subprocess.Popen(
-                    ['strace', '-f', '-e', 'trace=network,file,process', base_command, '--help'],
+                    [
+                        "strace",
+                        "-f",
+                        "-e",
+                        "trace=network,file,process",
+                        base_command,
+                        "--help",
+                    ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
-                    preexec_fn=os.setsid
+                    preexec_fn=os.setsid,
                 )
 
                 try:
@@ -65,7 +80,7 @@ def search_command(base_command, state_manager, scanner_module, headless=False, 
                 except subprocess.TimeoutExpired:
                     # Timeout: Try killing process group
                     try:
-                        if hasattr(os, 'killpg') and hasattr(os, 'getpgid'):
+                        if hasattr(os, "killpg") and hasattr(os, "getpgid"):
                             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                         else:
                             proc.kill()
@@ -83,23 +98,43 @@ def search_command(base_command, state_manager, scanner_module, headless=False, 
                         pass
 
                     if headless:
-                        print(json.dumps({"command": base_command, "status": "[Telemetry Failed]", "kinetic_tags": [], "audit_method": "strace"}))
+                        print(
+                            json.dumps(
+                                {
+                                    "command": base_command,
+                                    "status": "[Telemetry Failed]",
+                                    "kinetic_tags": [],
+                                    "audit_method": "strace",
+                                }
+                            )
+                        )
                         return
                     print(f"{RED}Error:{RESET} Program timed out and was killed.")
                     return
 
-            except (FileNotFoundError, Exception) as e:
+            except (FileNotFoundError, Exception):
                 # Fallback to static ldd
                 full_path = shutil.which(base_command)
                 if not full_path:
                     if headless:
-                        print(json.dumps({"command": base_command, "status": "[Telemetry Failed]", "kinetic_tags": [], "audit_method": "static"}))
+                        print(
+                            json.dumps(
+                                {
+                                    "command": base_command,
+                                    "status": "[Telemetry Failed]",
+                                    "kinetic_tags": [],
+                                    "audit_method": "static",
+                                }
+                            )
+                        )
                         return
                     print(f"{RED}Error:{RESET} Command not found for static analysis.")
                     return
 
                 try:
-                    proc = subprocess.run(['ldd', full_path], capture_output=True, text=True, check=True)
+                    proc = subprocess.run(
+                        ["ldd", full_path], capture_output=True, text=True, check=True
+                    )
                     tags = analyze_ldd_output(proc.stdout)
                     method = "ldd"
                 except Exception:
@@ -107,21 +142,36 @@ def search_command(base_command, state_manager, scanner_module, headless=False, 
                     method = "static"
 
             if headless:
-                print(json.dumps({
-                    "command": base_command,
-                    "status": "success",
-                    "kinetic_tags": tags,
-                    "audit_method": method
-                }))
+                print(
+                    json.dumps(
+                        {
+                            "command": base_command,
+                            "status": "success",
+                            "kinetic_tags": tags,
+                            "audit_method": method,
+                        }
+                    )
+                )
                 return
 
             print(f"{CYAN}Audit Method:{RESET} {method}")
-            print(f"{CYAN}Behavioral Tags:{RESET} {', '.join(tags) if tags else 'None detected'}")
+            print(
+                f"{CYAN}Behavioral Tags:{RESET} {', '.join(tags) if tags else 'None detected'}"
+            )
             pause()
             return
 
         if headless:
-            print(json.dumps({"command": base_command, "status": "success", "kinetic_tags": [], "audit_method": "none"}))
+            print(
+                json.dumps(
+                    {
+                        "command": base_command,
+                        "status": "success",
+                        "kinetic_tags": [],
+                        "audit_method": "none",
+                    }
+                )
+            )
             return
 
         print(f"\n{CYAN}{BOLD}Command:{RESET} {base_command}")
@@ -135,14 +185,34 @@ def search_command(base_command, state_manager, scanner_module, headless=False, 
 
     if base_command in probe_blacklist:
         if headless:
-            print(json.dumps({"command": base_command, "status": "blacklisted", "kinetic_tags": [], "audit_method": "none"}))
+            print(
+                json.dumps(
+                    {
+                        "command": base_command,
+                        "status": "blacklisted",
+                        "kinetic_tags": [],
+                        "audit_method": "none",
+                    }
+                )
+            )
             return
-        print(f"{RED}Error:{RESET} '{base_command}' is in the blacklist. Run factory reset to clear.")
+        print(
+            f"{RED}Error:{RESET} '{base_command}' is in the blacklist. Run factory reset to clear."
+        )
         pause()
         return
 
     if headless:
-        print(json.dumps({"command": base_command, "status": "not_found", "kinetic_tags": [], "audit_method": "none"}))
+        print(
+            json.dumps(
+                {
+                    "command": base_command,
+                    "status": "not_found",
+                    "kinetic_tags": [],
+                    "audit_method": "none",
+                }
+            )
+        )
         return
 
     print(f"{RED}Error:{RESET} Couldn't find exact command '{base_command}'.")
@@ -157,7 +227,9 @@ def search_command(base_command, state_manager, scanner_module, headless=False, 
     else:
         suggestion = scanner_module.suggest_command(base_command, state_manager)
         if suggestion:
-            print(f"{YELLOW}Linting Suggestion:{RESET} Did you mean '{BOLD}{GREEN}{suggestion}{RESET}'?")
+            print(
+                f"{YELLOW}Linting Suggestion:{RESET} Did you mean '{BOLD}{GREEN}{suggestion}{RESET}'?"
+            )
 
     if session_history and list(session_history.keys())[-1] == base_command:
         del session_history[base_command]

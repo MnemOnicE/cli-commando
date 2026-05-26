@@ -45,8 +45,9 @@ flowchart TD
     AuditCheck -- No --> DisplayInfo[Display Description & Example]:::process
     KnownCheck -- No --> BlacklistCheck{In Blacklist?}:::decision
     BlacklistCheck -- Yes --> Block[Reject: Blacklisted]:::fallback
-    BlacklistCheck -- No --> IntentSearch[Intent / Fuzzy Search]:::process
-    IntentSearch --> Suggestion[Suggest Similar Commands]:::process
+    BlacklistCheck -- No --> IntentSearch{Intent Matches?}:::decision
+    IntentSearch -- Yes --> DisplayIntent[Display Intent Matches]:::process
+    IntentSearch -- No --> Suggestion[Suggest Similar Commands]:::process
 ```
 
 #### 2. System Auto-Scanner Flow

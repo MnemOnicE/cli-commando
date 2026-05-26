@@ -65,13 +65,22 @@ def search_command(base_command, state_manager, scanner_module, headless=False, 
                 except subprocess.TimeoutExpired:
                     # Timeout: Try killing process group
                     try:
-                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                    except PermissionError:
+                        if hasattr(os, 'killpg') and hasattr(os, 'getpgid'):
+                            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                        else:
+                            proc.kill()
+                    except (PermissionError, ProcessLookupError):
                         # Fallback: Android/SELinux doesn't allow setsid sometimes.
-                        # Real-time extraction wasn't possible since we used communicate(),
-                        # but we can try to terminate the parent and hope for the best, or
-                        # parsing would require a different thread reading stdout.
-                        proc.kill()
+                        try:
+                            proc.kill()
+                        except OSError:
+                            pass
+
+                    # Reap the process to avoid zombie processes and close pipes
+                    try:
+                        proc.communicate()
+                    except Exception:
+                        pass
 
                     if headless:
                         print(json.dumps({"command": base_command, "status": "[Telemetry Failed]", "kinetic_tags": [], "audit_method": "strace"}))

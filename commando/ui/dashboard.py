@@ -1,6 +1,7 @@
 import sys
 import random
 import os
+import shutil
 from commando.utils.io import (
     CYAN, GREEN, YELLOW, RED, MAGENTA, BOLD, RESET,
     DEBUG_LOG_FILE, HISTORY_FILE, BLACKLIST_FILE, CUSTOM_DICT_FILE, PENDING_DICT_FILE,
@@ -275,7 +276,12 @@ def install_bash_hook():
     choice = input(f"\n{YELLOW}Proceed? (y/n): {RESET}").strip().lower()
     if choice == 'y':
         bashrc_path = os.path.expanduser("~/.bashrc")
-        script_path = os.path.abspath(sys.argv[0]) # Use argv[0] as an approximation for now
+        script_path = sys.argv[0]
+        if not os.path.isabs(script_path):
+            resolved = shutil.which(script_path)
+            if resolved:
+                script_path = resolved
+        script_path = os.path.abspath(script_path)
 
         hook_snippet = f'''\n# cli-commando auto-search hook
 command_not_found_handle() {{

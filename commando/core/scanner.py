@@ -45,21 +45,10 @@ def build_inverted_index(state_manager):
     save_json(INDEX_FILE, index)
     return index
 
-_inverted_index_cache = None
-
 def get_inverted_index(state_manager):
-    global _inverted_index_cache
-    if _inverted_index_cache is not None:
-        return _inverted_index_cache
-    if INDEX_FILE.exists():
-        try:
-            _inverted_index_cache = load_json(INDEX_FILE, {})
-            if _inverted_index_cache:
-                return _inverted_index_cache
-        except Exception:
-            pass
-    _inverted_index_cache = build_inverted_index(state_manager)
-    return _inverted_index_cache
+    # For now, just rebuild it if it doesn't exist, or just rebuild it to be safe
+    # In a fully optimized app, we'd invalidate it on add/remove.
+    return build_inverted_index(state_manager)
 
 def search_intent(query, state_manager):
     query_words = set(re.findall(r'\w+', query.lower()))
@@ -208,9 +197,7 @@ def auto_scan_system(state_manager):
                         success = True
                         break
 
-            if success:
-                if len(description) >= 200:
-                    description = description[:197] + "..."
+            if success and len(description) < 200:
                 if not any(r in description.lower() for r in reject_terms):
                     return cmd, {"desc": sanitize_text(description), "example": sanitize_text(example_str), "category": "Auto-Imported Libs", "source": "Static Analysis"}
         except Exception as e:

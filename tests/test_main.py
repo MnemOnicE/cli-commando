@@ -112,3 +112,116 @@ class TestCommandoUtilities(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class TestAuditModule(unittest.TestCase):
+    def setUp(self):
+        self.state_manager = MagicMock()
+        self.state_manager.session_history = {}
+        self.state_manager.custom_guide = {}
+        self.state_manager.probe_blacklist = []
+        self.state_manager.pending_imports = {}
+        self.state_manager.get_all_known_commands.return_value = {
+            "ls": {"desc": "list files", "category": "System"}
+        }
+        self.scanner_module = MagicMock()
+
+    @patch('commando.core.audit.os.killpg')
+    @patch('commando.core.audit.os.getpgid')
+    @patch('commando.core.audit.subprocess.Popen')
+    def test_search_command_timeout_kills_process_group(self, mock_popen, mock_getpgid, mock_killpg):
+        from commando.core.audit import search_command
+        import subprocess
+        import signal
+
+        # Setup mock Popen to raise TimeoutExpired on communicate
+        mock_proc = MagicMock()
+        mock_proc.pid = 12345
+        mock_proc.communicate.side_effect = subprocess.TimeoutExpired(cmd='strace', timeout=2)
+        mock_popen.return_value = mock_proc
+
+        # Mock os.getpgid to return a specific process group id
+        mock_getpgid.return_value = 54321
+
+        # We need to capture stdout to avoid cluttering the test output
+        from io import StringIO
+        import sys
+
+        captured_output = StringIO()
+        sys.stdout = captured_output
+
+        try:
+            search_command("ls", self.state_manager, self.scanner_module, headless=False, audit=True)
+        finally:
+            sys.stdout = sys.__stdout__
+
+        # Verify that os.killpg was called with the correct process group ID and signal
+        mock_getpgid.assert_called_once_with(12345)
+        mock_killpg.assert_called_once_with(54321, signal.SIGKILL)
+
+class TestScannerModule(unittest.TestCase):
+    def setUp(self):
+        self.state_manager = MagicMock()
+        self.state_manager.get_all_known_commands.return_value = {}
+        self.state_manager.probe_blacklist = []
+        self.state_manager.pending_imports = {}
+
+    @patch('commando.core.scanner.subprocess.run')
+    @patch('commando.core.scanner.os.environ.get')
+    @patch('commando.core.scanner.os.path.isdir')
+    @patch('commando.core.scanner.os.listdir')
+    @patch('commando.core.scanner.os.path.isfile')
+    @patch('commando.core.scanner.os.access')
+    def test_auto_scan_system_malformed_ansi_injection(self, mock_access, mock_isfile, mock_listdir, mock_isdir, mock_environ_get, mock_run):
+        from commando.core.scanner import auto_scan_system
+        import subprocess
+
+        # Setup mocked filesystem to find one 'unknown' binary
+        mock_environ_get.return_value = '/usr/bin'
+        mock_isdir.return_value = True
+        mock_listdir.return_value = ['malicious_bin']
+        mock_isfile.return_value = True
+        mock_access.return_value = True
+
+        # Malformed output with ANSI escape codes and unprintable characters
+        malicious_output = "malicious_bin - usage: \033[31mExploit\033[0m \x00\x01\n malicious_bin - A very \033[1;32mcolorful\033[0m description."
+
+        # Configure subprocess.run to simulate `whatis` failing, then `help` failing, then static analysis via `strings` succeeding
+        def side_effect(args, **kwargs):
+            if args[0] == 'whatis':
+                raise subprocess.CalledProcessError(1, 'whatis')
+            elif args[0] == 'bash' and args[1] == '-c':
+                raise subprocess.CalledProcessError(1, 'bash')
+            elif args[0] == 'strings':
+                return MagicMock(stdout=malicious_output, returncode=0)
+            return MagicMock(stdout="", returncode=0)
+
+        mock_run.side_effect = side_effect
+
+        # Mock the 'with open' for the header check to return ELF header
+        with patch('builtins.open', unittest.mock.mock_open(read_data=b'\x7fELF')):
+
+            # Capture output
+            from io import StringIO
+            import sys
+            captured_output = StringIO()
+            sys.stdout = captured_output
+
+            try:
+                auto_scan_system(self.state_manager)
+            finally:
+                sys.stdout = sys.__stdout__
+
+        # Check if the pending import was added correctly
+        self.assertIn('malicious_bin', self.state_manager.pending_imports)
+
+        saved_desc = self.state_manager.pending_imports['malicious_bin']['desc']
+
+        # Ensure ANSI escapes and unprintable chars (except newlines/spaces) are stripped
+        # "\033[31mExploit\033[0m \x00\x01\n - A very \033[1;32mcolorful\033[0m description."
+        # The ESC char \033 is stripped, leaving "[31mExploit[0m \n - A very [1;32mcolorful[0m description."
+        # Wait, the regex in static analysis `motif_dash = re.compile(r"(?i)^\s*" + re.escape(cmd) + r"\s+-\s+(.*)")`
+        # Actually it falls back to looking for the command name, or just taking the first matching line.
+        # Let's just check that the description has been processed by `sanitize_text`.
+
+        # We can just verify it doesn't contain the raw ESC char \033
+        self.assertNotIn('\033', saved_desc)

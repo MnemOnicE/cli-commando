@@ -200,16 +200,12 @@ class TestScannerModule(unittest.TestCase):
         # Mock the 'with open' for the header check to return ELF header
         with patch('builtins.open', unittest.mock.mock_open(read_data=b'\x7fELF')):
 
-            # Capture output
+            from contextlib import redirect_stdout
             from io import StringIO
-            import sys
-            captured_output = StringIO()
-            sys.stdout = captured_output
 
-            try:
+            captured_output = StringIO()
+            with redirect_stdout(captured_output):
                 auto_scan_system(self.state_manager)
-            finally:
-                sys.stdout = sys.__stdout__
 
         # Check if the pending import was added correctly
         self.assertIn('malicious_bin', self.state_manager.pending_imports)

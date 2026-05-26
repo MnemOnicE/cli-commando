@@ -41,10 +41,17 @@ def load_json(filepath, default_val):
     return default_val
 
 def save_json(filepath, data):
-    temp_path = filepath.with_suffix('.json.tmp')
-    with open(temp_path, 'w') as f:
-        json.dump(data, f, indent=4)
-    os.replace(temp_path, filepath)
+    temp_path = filepath.with_suffix(".json.tmp")
+    try:
+        with open(temp_path, "w") as f:
+            json.dump(data, f, indent=4)
+        os.replace(temp_path, filepath)
+    except Exception:
+        try:
+            temp_path.unlink()
+        except OSError:
+            pass
+        raise
 
 def write_log(cmd, reason, raw_output=""):
     """Writes failed probes to the debug log."""

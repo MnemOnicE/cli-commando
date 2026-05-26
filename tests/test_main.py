@@ -125,8 +125,8 @@ class TestAuditModule(unittest.TestCase):
         }
         self.scanner_module = MagicMock()
 
-    @patch('commando.core.audit.os.killpg', create=True)
-    @patch('commando.core.audit.os.getpgid', create=True)
+    @patch('commando.core.audit.os.killpg')
+    @patch('commando.core.audit.os.getpgid')
     @patch('commando.core.audit.subprocess.Popen')
     def test_search_command_timeout_kills_process_group(self, mock_popen, mock_getpgid, mock_killpg):
         from commando.core.audit import search_command
@@ -142,12 +142,17 @@ class TestAuditModule(unittest.TestCase):
         # Mock os.getpgid to return a specific process group id
         mock_getpgid.return_value = 54321
 
-        from contextlib import redirect_stdout
+        # We need to capture stdout to avoid cluttering the test output
         from io import StringIO
+        import sys
 
         captured_output = StringIO()
-        with redirect_stdout(captured_output):
+        sys.stdout = captured_output
+
+        try:
             search_command("ls", self.state_manager, self.scanner_module, headless=False, audit=True)
+        finally:
+            sys.stdout = sys.__stdout__
 
         # Verify that os.killpg was called with the correct process group ID and signal
         mock_getpgid.assert_called_once_with(12345)
@@ -195,12 +200,16 @@ class TestScannerModule(unittest.TestCase):
         # Mock the 'with open' for the header check to return ELF header
         with patch('builtins.open', unittest.mock.mock_open(read_data=b'\x7fELF')):
 
-            from contextlib import redirect_stdout
+            # Capture output
             from io import StringIO
-
+            import sys
             captured_output = StringIO()
-            with redirect_stdout(captured_output):
+            sys.stdout = captured_output
+
+            try:
                 auto_scan_system(self.state_manager)
+            finally:
+                sys.stdout = sys.__stdout__
 
         # Check if the pending import was added correctly
         self.assertIn('malicious_bin', self.state_manager.pending_imports)
@@ -215,7 +224,4 @@ class TestScannerModule(unittest.TestCase):
         # Let's just check that the description has been processed by `sanitize_text`.
 
         # We can just verify it doesn't contain the raw ESC char \033
-        self.assertNotIn('\\033', saved_desc)
-
-if __name__ == '__main__':
-    unittest.main()
+        self.assertNotIn('\033', saved_desc)

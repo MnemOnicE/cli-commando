@@ -8,10 +8,42 @@ version = "0.1.0"
 description = "Terminal Command Explorer & Tutor"
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = []
+authors = [
+    { name = "Mnemo (Seth)", email = "seth@ontologics.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "pyyaml>=6.0",
+]
 
 [project.scripts]
 commando = "commando.main:cli"
 
 [tool.setuptools.packages.find]
 include = ["commando*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[project.urls]
+"Homepage" = "https://github.com/ontologics/cli-commando"
+"Bug Tracker" = "https://github.com/ontologics/cli-commando/issues"
+"Documentation" = "https://github.com/ontologics/cli-commando/blob/main/README.md"

@@ -1,12 +1,26 @@
-import sys
-import random
 import os
+import random
 import shutil
+import sys
+
 from commando.utils.io import (
-    CYAN, GREEN, YELLOW, RED, MAGENTA, BOLD, RESET,
-    DEBUG_LOG_FILE, HISTORY_FILE, BLACKLIST_FILE, CUSTOM_DICT_FILE, PENDING_DICT_FILE,
-    save_json, clear_screen, pause
+    BLACKLIST_FILE,
+    BOLD,
+    CUSTOM_DICT_FILE,
+    CYAN,
+    DEBUG_LOG_FILE,
+    GREEN,
+    HISTORY_FILE,
+    MAGENTA,
+    PENDING_DICT_FILE,
+    RED,
+    RESET,
+    YELLOW,
+    clear_screen,
+    pause,
+    save_json,
 )
+
 
 def print_dashboard(session_history, pending_imports):
     clear_screen()
@@ -15,7 +29,9 @@ def print_dashboard(session_history, pending_imports):
     print(f"{CYAN}{BOLD}=============================================={RESET}")
 
     if session_history:
-        print(f"{MAGENTA}Recent: {', '.join(list(session_history.keys())[-5:])}{RESET}\n")
+        print(
+            f"{MAGENTA}Recent: {', '.join(list(session_history.keys())[-5:])}{RESET}\n"
+        )
 
     print(f" {GREEN}[1]{RESET} Explore Random Command")
     print(f" {GREEN}[2]{RESET} Explore by Category")
@@ -24,10 +40,13 @@ def print_dashboard(session_history, pending_imports):
     print(f" {YELLOW}[5]{RESET} View Debug Log")
     print(f" {RED}[6]{RESET} Factory Reset (Wipe Data)")
     if pending_imports:
-        print(f" {CYAN}[7]{RESET} Review Pending Imports ({len(pending_imports)} waiting)")
+        print(
+            f" {CYAN}[7]{RESET} Review Pending Imports ({len(pending_imports)} waiting)"
+        )
     print(f" {MAGENTA}[8]{RESET} Install Bash Hook")
     print(f" {RED}[0]{RESET} Exit & Quiz Mode")
     print(f"{YELLOW}Or type a command to search (e.g., ls, nano){RESET}\n")
+
 
 def view_debug_log():
     clear_screen()
@@ -44,6 +63,7 @@ def view_debug_log():
     print("\n")
     pause()
 
+
 def factory_reset(state_manager):
     clear_screen()
     print(f"{RED}★ Factory Reset ★{RESET}\n")
@@ -55,19 +75,19 @@ def factory_reset(state_manager):
 
     choice = input(f"\n{GREEN}➜ {RESET}").strip()
 
-    if choice == '1':
+    if choice == "1":
         state_manager.session_history = {}
         save_json(HISTORY_FILE, state_manager.session_history)
         print(f"{YELLOW}History cleared.{RESET}")
-    elif choice == '2':
+    elif choice == "2":
         state_manager.probe_blacklist = []
         save_json(BLACKLIST_FILE, state_manager.probe_blacklist)
         print(f"{YELLOW}Blacklist cleared.{RESET}")
-    elif choice == '3':
+    elif choice == "3":
         state_manager.custom_guide = {}
         save_json(CUSTOM_DICT_FILE, state_manager.custom_guide)
         print(f"{YELLOW}Custom imports cleared.{RESET}")
-    elif choice == '4':
+    elif choice == "4":
         state_manager.session_history = {}
         state_manager.custom_guide = {}
         state_manager.probe_blacklist = []
@@ -78,8 +98,9 @@ def factory_reset(state_manager):
             DEBUG_LOG_FILE.unlink()
         print(f"{RED}All databases and logs nuked.{RESET}")
 
-    if choice in ['1', '2', '3', '4']:
+    if choice in ["1", "2", "3", "4"]:
         pause()
+
 
 def explore_category(state_manager):
     all_known = state_manager.get_all_known_commands()
@@ -93,7 +114,7 @@ def explore_category(state_manager):
 
     try:
         choice = input(f"\nSelect a category number: {GREEN}➜ {RESET}").strip()
-        if choice == '0' or not choice.isdigit():
+        if choice == "0" or not choice.isdigit():
             return
         idx = int(choice) - 1
         if 0 <= idx < len(categories):
@@ -110,6 +131,7 @@ def explore_category(state_manager):
     except KeyboardInterrupt:
         return
 
+
 def manage_imports(state_manager):
     clear_screen()
     custom_guide = state_manager.custom_guide
@@ -120,12 +142,14 @@ def manage_imports(state_manager):
 
     print(f"{MAGENTA}★ Custom Imported Libraries ★{RESET}\n")
     for cmd, data in custom_guide.items():
-        short_desc = (data['desc'][:60] + '...') if len(data['desc']) > 60 else data['desc']
+        short_desc = (
+            (data["desc"][:60] + "...") if len(data["desc"]) > 60 else data["desc"]
+        )
         print(f" • {CYAN}{BOLD}{cmd}{RESET}: {short_desc}")
 
     print(f"\n{YELLOW}Options:{RESET}")
     print(f" - Type a command name to {RED}DELETE{RESET} it from the database.")
-    print(f" - Press Enter to return to the menu.")
+    print(" - Press Enter to return to the menu.")
 
     choice = input(f"\n{GREEN}➜ {RESET}").strip().lower()
     if choice in custom_guide:
@@ -136,6 +160,7 @@ def manage_imports(state_manager):
     elif choice:
         print(f"{RED}Command not found in custom imports.{RESET}")
         pause()
+
 
 def run_quiz(state_manager):
     session_history = state_manager.session_history
@@ -151,7 +176,9 @@ def run_quiz(state_manager):
 
     valid_pool = [cmd for cmd in quiz_pool if cmd in all_data]
     if len(valid_pool) < 3:
-        print(f"\n{YELLOW}Not enough valid known commands for a quiz yet. Keep exploring!{RESET}")
+        print(
+            f"\n{YELLOW}Not enough valid known commands for a quiz yet. Keep exploring!{RESET}"
+        )
         pause()
         return
 
@@ -203,6 +230,7 @@ def run_quiz(state_manager):
     print(f"{YELLOW}Quiz Complete! You scored {score}/3.{RESET}")
     pause()
 
+
 def review_pending_imports(state_manager):
     pending_imports = state_manager.pending_imports
     custom_guide = state_manager.custom_guide
@@ -225,11 +253,13 @@ def review_pending_imports(state_manager):
         print(f"Category:    [{MAGENTA}{data['category']}{RESET}]")
         print(f"Explanation: {data['desc']}")
         print(f"Example:     {data['example']}")
-        print(f"\n{YELLOW}Options:{RESET} (y) Accept | (n) Reject | (e) Edit | (q) Quit Reviewing")
+        print(
+            f"\n{YELLOW}Options:{RESET} (y) Accept | (n) Reject | (e) Edit | (q) Quit Reviewing"
+        )
 
         while True:
             choice = input(f"{GREEN}➜ {RESET}").strip().lower()
-            if choice == 'y':
+            if choice == "y":
                 custom_guide[cmd] = data
                 if len(custom_guide) > 1000:
                     del custom_guide[next(iter(custom_guide))]
@@ -238,17 +268,19 @@ def review_pending_imports(state_manager):
                 save_json(PENDING_DICT_FILE, pending_imports)
                 print(f"{GREEN}Accepted {cmd}.{RESET}")
                 break
-            elif choice == 'n':
+            elif choice == "n":
                 probe_blacklist.append(cmd)
                 save_json(BLACKLIST_FILE, probe_blacklist)
                 del pending_imports[cmd]
                 save_json(PENDING_DICT_FILE, pending_imports)
                 print(f"{RED}Rejected {cmd}.{RESET}")
                 break
-            elif choice == 'e':
-                new_desc = input(f"{CYAN}Enter new explanation for '{cmd}': {RESET}").strip()
+            elif choice == "e":
+                new_desc = input(
+                    f"{CYAN}Enter new explanation for '{cmd}': {RESET}"
+                ).strip()
                 if new_desc:
-                    data['desc'] = new_desc
+                    data["desc"] = new_desc
                     custom_guide[cmd] = data
                     if len(custom_guide) > 1000:
                         del custom_guide[next(iter(custom_guide))]
@@ -259,7 +291,7 @@ def review_pending_imports(state_manager):
                 else:
                     print(f"{YELLOW}Edit cancelled.{RESET}")
                 break
-            elif choice == 'q':
+            elif choice == "q":
                 return
             else:
                 print(f"{RED}Invalid choice.{RESET}")
@@ -267,14 +299,17 @@ def review_pending_imports(state_manager):
     print(f"\n{GREEN}Finished reviewing pending imports.{RESET}")
     pause()
 
+
 def install_bash_hook():
     clear_screen()
     print(f"{MAGENTA}★ Install Bash Hook ★{RESET}\n")
     print("This will add a 'command_not_found_handle' to your ~/.bashrc.")
-    print("When you type an unknown command, it will automatically be searched in cli-commando.")
+    print(
+        "When you type an unknown command, it will automatically be searched in cli-commando."
+    )
 
     choice = input(f"\n{YELLOW}Proceed? (y/n): {RESET}").strip().lower()
-    if choice == 'y':
+    if choice == "y":
         bashrc_path = os.path.expanduser("~/.bashrc")
         script_path = sys.argv[0]
         if not os.path.isabs(script_path):
@@ -283,15 +318,18 @@ def install_bash_hook():
                 script_path = resolved
         script_path = os.path.abspath(script_path)
 
-        hook_snippet = f'''\n# cli-commando auto-search hook
+        hook_snippet = f"""\n# cli-commando auto-search hook
 command_not_found_handle() {{
     python3 "{script_path}" "$1"
     return 127
 }}
-'''
+"""
         try:
             with open(bashrc_path, "r") as f:
-                if "command_not_found_handle()" in f.read() and "cli-commando" in f.read():
+                if (
+                    "command_not_found_handle()" in f.read()
+                    and "cli-commando" in f.read()
+                ):
                     print(f"\n{YELLOW}Hook is already installed in ~/.bashrc.{RESET}")
                     pause()
                     return
@@ -302,8 +340,11 @@ command_not_found_handle() {{
             f.write(hook_snippet)
 
         print(f"\n{GREEN}Successfully added hook to ~/.bashrc.{RESET}")
-        print(f"Please run 'source ~/.bashrc' or restart your terminal for it to take effect.")
+        print(
+            "Please run 'source ~/.bashrc' or restart your terminal for it to take effect."
+        )
     pause()
+
 
 def main_loop(state_manager, search_command_fn, auto_scan_fn):
     while True:
@@ -322,34 +363,40 @@ def main_loop(state_manager, search_command_fn, auto_scan_fn):
         if not raw_input:
             continue
 
-        if raw_input == '1':
+        if raw_input == "1":
             cmd = random.choice(list(all_known.keys()))
             search_command_fn(cmd)
             continue
-        elif raw_input == '2':
+        elif raw_input == "2":
             explore_category(state_manager)
             continue
-        elif raw_input == '3':
+        elif raw_input == "3":
             manage_imports(state_manager)
             continue
-        elif raw_input == '4':
+        elif raw_input == "4":
             auto_scan_fn(state_manager)
             continue
-        elif raw_input == '5':
+        elif raw_input == "5":
             view_debug_log()
             continue
-        elif raw_input == '6':
+        elif raw_input == "6":
             factory_reset(state_manager)
             continue
-        elif raw_input == '7' and pending_imports:
+        elif raw_input == "7" and pending_imports:
             review_pending_imports(state_manager)
             continue
-        elif raw_input == '8':
+        elif raw_input == "8":
             install_bash_hook()
             continue
-        elif raw_input == '0' or raw_input.lower() == 'done':
-            choice = input(f"\n{YELLOW}Do you want to take a quick quiz on your history before leaving? (y/n): {RESET}").strip().lower()
-            if choice == 'y':
+        elif raw_input == "0" or raw_input.lower() == "done":
+            choice = (
+                input(
+                    f"\n{YELLOW}Do you want to take a quick quiz on your history before leaving? (y/n): {RESET}"
+                )
+                .strip()
+                .lower()
+            )
+            if choice == "y":
                 run_quiz(state_manager)
             clear_screen()
             print(f"{YELLOW}Exiting... Happy coding!{RESET}\n")

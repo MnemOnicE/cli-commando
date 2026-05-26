@@ -12,3 +12,6 @@ dependencies = []
 
 [project.scripts]
 commando = "commando.main:cli"
+
+[tool.setuptools.packages.find]
+include = ["commando*"]

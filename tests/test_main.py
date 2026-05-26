@@ -125,8 +125,8 @@ class TestAuditModule(unittest.TestCase):
         }
         self.scanner_module = MagicMock()
 
-    @patch('commando.core.audit.os.killpg')
-    @patch('commando.core.audit.os.getpgid')
+    @patch('commando.core.audit.os.killpg', create=True)
+    @patch('commando.core.audit.os.getpgid', create=True)
     @patch('commando.core.audit.subprocess.Popen')
     def test_search_command_timeout_kills_process_group(self, mock_popen, mock_getpgid, mock_killpg):
         from commando.core.audit import search_command

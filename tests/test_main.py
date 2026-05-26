@@ -142,17 +142,12 @@ class TestAuditModule(unittest.TestCase):
         # Mock os.getpgid to return a specific process group id
         mock_getpgid.return_value = 54321
 
-        # We need to capture stdout to avoid cluttering the test output
+        from contextlib import redirect_stdout
         from io import StringIO
-        import sys
 
         captured_output = StringIO()
-        sys.stdout = captured_output
-
-        try:
+        with redirect_stdout(captured_output):
             search_command("ls", self.state_manager, self.scanner_module, headless=False, audit=True)
-        finally:
-            sys.stdout = sys.__stdout__
 
         # Verify that os.killpg was called with the correct process group ID and signal
         mock_getpgid.assert_called_once_with(12345)

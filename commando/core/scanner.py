@@ -197,7 +197,9 @@ def auto_scan_system(state_manager):
                         success = True
                         break
 
-            if success and len(description) < 200:
+            if success:
+                if len(description) >= 200:
+                    description = description[:197] + "..."
                 if not any(r in description.lower() for r in reject_terms):
                     return cmd, {"desc": sanitize_text(description), "example": sanitize_text(example_str), "category": "Auto-Imported Libs", "source": "Static Analysis"}
         except Exception as e:

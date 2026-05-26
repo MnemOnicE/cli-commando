@@ -51,11 +51,16 @@ class ConfigManager:
                     self.config_data = DEFAULT_CONFIG.copy()
 
     def _save_internal(self):
+        temp_file = CONFIG_FILE.with_suffix(".yaml.tmp")
         try:
-            with open(CONFIG_FILE, "w") as f:
+            with open(temp_file, "w") as f:
                 yaml.dump(self.config_data, f, default_flow_style=False)
+            temp_file.replace(CONFIG_FILE)
         except Exception:
-            pass
+            try:
+                temp_file.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def get(self, key, default=None):
         with self._lock:

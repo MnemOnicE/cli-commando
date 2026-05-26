@@ -89,8 +89,8 @@ flowchart TD
     RunStrace --> StraceStatus{Execution Status}:::decision
     StraceStatus -- Success --> ParseStrace[Parse System Calls]:::process
     ParseStrace --> AssignTagsStrace[Assign Tags<br/>Network, File, Process]:::process
-    StraceStatus -- Timeout / Killed --> LddFallback[Fallback to 'ldd' Static Analysis]:::fallback
-    StraceStatus -- Error / No ptrace --> LddFallback
+    StraceStatus -- Timeout / Killed --> ErrorExit[Exit with Timeout Error]:::fallback
+    StraceStatus -- Startup Error / No strace --> LddFallback[Fallback to 'ldd' Static Analysis]:::fallback
     LddFallback --> LddStatus{ldd Status}:::decision
     LddStatus -- Success --> ParseLdd[Parse Shared Libraries]:::process
     ParseLdd --> AssignTagsLdd[Assign Tags<br/>libcurl, libssl, libc]:::process

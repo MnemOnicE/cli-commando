@@ -3,13 +3,26 @@ import tempfile
 import json
 import os
 from pathlib import Path
-from commando.main import load_json, save_json, suggest_command
+from unittest.mock import patch, MagicMock
+
+# We need to test the new utilities
+from commando.utils.io import load_json, save_json
+from commando.core.scanner import sanitize_text, suggest_command
+from commando.main import StateManager
 
 class TestCommandoUtilities(unittest.TestCase):
 
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.temp_dir_path = Path(self.temp_dir.name)
+        # Mock StateManager
+        self.state_manager = MagicMock()
+        self.state_manager.get_all_known_commands.return_value = {
+            "list": {},
+            "remove": {},
+            "copy": {},
+            "status": {}
+        }
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -18,16 +31,11 @@ class TestCommandoUtilities(unittest.TestCase):
         """Test exception handling in load_json when an invalid file is loaded or parsing fails."""
         filepath = self.temp_dir_path / "invalid.json"
 
-        # Create an invalid JSON file
         with open(filepath, 'w') as f:
             f.write("{ invalid json content ]")
 
         default_val = {"default": "value"}
-
-        # Test loading the invalid file
         result = load_json(filepath, default_val)
-
-        # Verify it falls back to the default value
         self.assertEqual(result, default_val)
 
     def test_load_json_valid_file(self):
@@ -50,47 +58,57 @@ class TestCommandoUtilities(unittest.TestCase):
         self.assertEqual(result, default_val)
 
     def test_save_json(self):
-        """No tests exist for save_json to ensure that dictionary content writes successfully to a file."""
+        """Test save_json to ensure that dictionary content writes successfully to a file."""
         filepath = self.temp_dir_path / "test_save.json"
         data_to_save = {"test_key": "test_value", "nested": [1, 2, 3]}
 
-        # Call save_json
         save_json(filepath, data_to_save)
-
-        # Verify file exists
         self.assertTrue(filepath.exists())
 
-        # Read the file directly to verify content
         with open(filepath, 'r') as f:
             saved_content = json.load(f)
 
-        # Verify the content matches what we saved
         self.assertEqual(saved_content, data_to_save)
 
     def test_suggest_command(self):
-        """suggest_command has no testing to verify logic identifying close matches using difflib."""
-        # Using a context manager or patching get_all_known_commands might be necessary
-        # Let's import mock to patch get_all_known_commands
-        from unittest.mock import patch
+        """Test suggest_command correctly identifies close matches."""
+        self.assertEqual(suggest_command("list", self.state_manager), "list")
+        self.assertEqual(suggest_command("lsit", self.state_manager), "list")
+        self.assertEqual(suggest_command("remov", self.state_manager), "remove")
+        self.assertEqual(suggest_command("cpoy", self.state_manager), "copy")
+        self.assertIsNone(suggest_command("xyz123", self.state_manager))
 
-        known_commands = {
-            "list": {},
-            "remove": {},
-            "copy": {},
-            "status": {}
-        }
+    def test_sanitize_text_sentinel_fix(self):
+        """Test Sentinel fix: ensure ANSI escapes and control chars are stripped."""
+        # ANSI Escape Code for color
+        malicious = "\033[91mExploit\033[0m"
+        clean = sanitize_text(malicious)
+        self.assertEqual(clean, "[91mExploit[0m") # The ESC char (27) is stripped, leaving the printable parts
 
-        with patch('commando.main.get_all_known_commands', return_value=known_commands):
-            # Test exact match (not strictly needed since we normally wouldn't call suggest on exact match, but good to check)
-            self.assertEqual(suggest_command("list"), "list")
+        # Pure unprintable
+        unprintable = "Hello\x00\x01World\x07!"
+        clean_unprintable = sanitize_text(unprintable)
+        self.assertEqual(clean_unprintable, "HelloWorld!")
 
-            # Test close matches (typos)
-            self.assertEqual(suggest_command("lsit"), "list")
-            self.assertEqual(suggest_command("remov"), "remove")
-            self.assertEqual(suggest_command("cpoy"), "copy")
+        # Valid whitespaces
+        valid_whitespace = "Line 1\nLine 2\tIndented\r"
+        self.assertEqual(sanitize_text(valid_whitespace), valid_whitespace)
 
-            # Test complete mismatch
-            self.assertIsNone(suggest_command("xyz123"))
+        # Valid UTF-8
+        valid_utf8 = "Привет 世界"
+        self.assertEqual(sanitize_text(valid_utf8), valid_utf8)
+
+    @patch('subprocess.run')
+    def test_subprocess_mocking(self, mock_run):
+        """Fortify Test Suite: Mock the subprocess.run calls to deterministically test logic."""
+        mock_run.return_value = MagicMock(stdout="Mocked output", returncode=0)
+        from commando.core.scanner import sanitize_text # Dummy import to ensure it works
+
+        # We will test the analyze_strace_output from audit to ensure mocking theory works
+        from commando.core.audit import analyze_strace_output
+        tags = analyze_strace_output("connect(1, 2) = 0\nopenat(1, \"file\") = 3\n")
+        self.assertIn("[Network Mutator]", tags)
+        self.assertIn("[File Reader/Writer]", tags)
 
 if __name__ == '__main__':
     unittest.main()

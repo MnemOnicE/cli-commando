@@ -125,7 +125,9 @@ def auto_scan_system(state_manager):
     pending_imports_set = set(state_manager.pending_imports.keys())
     system_bins_set = set()
 
-    allowed_paths = ConfigManager().get("allowed_paths", [])
+    allowed_paths = ConfigManager().get("allowed_paths")
+    if not isinstance(allowed_paths, list):
+        allowed_paths = []
     raw_path_dirs = os.environ.get("PATH", "").split(os.pathsep)
     path_dirs = []
     for p in raw_path_dirs:

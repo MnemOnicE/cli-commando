@@ -215,4 +215,7 @@ class TestScannerModule(unittest.TestCase):
         # Let's just check that the description has been processed by `sanitize_text`.
 
         # We can just verify it doesn't contain the raw ESC char \033
-        self.assertNotIn('\033', saved_desc)
+        self.assertNotIn('\\033', saved_desc)
+
+if __name__ == '__main__':
+    unittest.main()

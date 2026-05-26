@@ -20,6 +20,86 @@ CLI-Commando transitions from dynamic probing to secure, defensive scanning:
 - It employs concurrent execution carefully throttled to preserve system performance (especially on ARM and constrained hardware).
 - It is designed as a fully modular Python package.
 
+### Data Flow Diagrams
+
+Below are the detailed workflows that power CLI-Commando. They share a consistent color coding scheme:
+* **Blue**: Core processes and actions
+* **Yellow**: Logical decisions
+* **Green**: Data storage and databases
+* **Red**: Fallbacks, errors, or rejections
+
+#### 1. Overall Command Search Flow
+How CLI-Commando handles a standard search query from the user.
+
+```mermaid
+flowchart TD
+    classDef process fill:#d4e6f1,stroke:#2874a6,stroke-width:2px,color:#1b4f72;
+    classDef decision fill:#fcf3cf,stroke:#b7950b,stroke-width:2px,color:#7d6608;
+    classDef database fill:#d5f5e3,stroke:#1e8449,stroke-width:2px,color:#145a32;
+    classDef fallback fill:#fadbd8,stroke:#cb4335,stroke-width:2px,color:#78281f;
+
+    User[User Searches Command] --> LogHistory[Log to History DB]:::database
+    LogHistory --> KnownCheck{In Known DB?}:::decision
+    KnownCheck -- Yes --> AuditCheck{Audit Flag?}:::decision
+    AuditCheck -- Yes --> KineticAudit[Execute Kinetic Audit Flow]:::process
+    AuditCheck -- No --> DisplayInfo[Display Description & Example]:::process
+    KnownCheck -- No --> BlacklistCheck{In Blacklist?}:::decision
+    BlacklistCheck -- Yes --> Block[Reject: Blacklisted]:::fallback
+    BlacklistCheck -- No --> IntentSearch[Intent / Fuzzy Search]:::process
+    IntentSearch --> Suggestion[Suggest Similar Commands]:::process
+```
+
+#### 2. System Auto-Scanner Flow
+The zero-trust containment protocol for discovering and learning about new executables safely without arbitrary execution.
+
+```mermaid
+flowchart TD
+    classDef process fill:#d4e6f1,stroke:#2874a6,stroke-width:2px,color:#1b4f72;
+    classDef decision fill:#fcf3cf,stroke:#b7950b,stroke-width:2px,color:#7d6608;
+    classDef database fill:#d5f5e3,stroke:#1e8449,stroke-width:2px,color:#145a32;
+    classDef fallback fill:#fadbd8,stroke:#cb4335,stroke-width:2px,color:#78281f;
+
+    StartScan[Scan PATH Directories] --> FilterBins[Filter Unknown Binaries]:::process
+    FilterBins --> BatchLimit[Select Batch Limit]:::process
+    BatchLimit --> OSManualCheck{OS Manual Exists?<br/>whatis / bash help}:::decision
+    OSManualCheck -- Yes --> ParseManual[Extract Manual Text]:::process
+    OSManualCheck -- No --> FileHeaderCheck{Check File Header}:::decision
+    FileHeaderCheck -- ELF Binary --> StringsScan[Run 'strings' Static Analysis]:::process
+    FileHeaderCheck -- Shell Script --> ReadText[Read File Text]:::process
+    FileHeaderCheck -- Unknown / Other --> BlacklistAdd[Add to Blacklist DB]:::database
+    StringsScan --> ParseText[Extract Description & Usage Motif]:::process
+    ReadText --> ParseText
+    ParseText --> SuccessCheck{Text Valid?}:::decision
+    SuccessCheck -- Yes --> PendingImports[Add to Pending Imports DB]:::database
+    SuccessCheck -- No --> BlacklistAdd
+    ParseManual --> PendingImports
+```
+
+#### 3. Kinetic Audit Flow
+The dynamic behavioral profiling system with its graceful degradation into static analysis.
+
+```mermaid
+flowchart TD
+    classDef process fill:#d4e6f1,stroke:#2874a6,stroke-width:2px,color:#1b4f72;
+    classDef decision fill:#fcf3cf,stroke:#b7950b,stroke-width:2px,color:#7d6608;
+    classDef database fill:#d5f5e3,stroke:#1e8449,stroke-width:2px,color:#145a32;
+    classDef fallback fill:#fadbd8,stroke:#cb4335,stroke-width:2px,color:#78281f;
+
+    StartAudit[Start Audit on Known Command] --> RunStrace[Run 'strace'<br/>Timeout: 2s]:::process
+    RunStrace --> StraceStatus{Execution Status}:::decision
+    StraceStatus -- Success --> ParseStrace[Parse System Calls]:::process
+    ParseStrace --> AssignTagsStrace[Assign Tags<br/>Network, File, Process]:::process
+    StraceStatus -- Timeout / Killed --> LddFallback[Fallback to 'ldd' Static Analysis]:::fallback
+    StraceStatus -- Error / No ptrace --> LddFallback
+    LddFallback --> LddStatus{ldd Status}:::decision
+    LddStatus -- Success --> ParseLdd[Parse Shared Libraries]:::process
+    ParseLdd --> AssignTagsLdd[Assign Tags<br/>libcurl, libssl, libc]:::process
+    LddStatus -- Error --> StaticFallback[Fallback to Static/None]:::fallback
+    StaticFallback --> Output[Format Output / JSON]:::process
+    AssignTagsStrace --> Output
+    AssignTagsLdd --> Output
+```
+
 ## Prerequisites & Environment
 
 While the tool is installed via `pip`, it relies on the following OS-level binaries for its core functionality:

@@ -128,6 +128,34 @@ class TestAuditModule(unittest.TestCase):
         }
         self.scanner_module = MagicMock()
 
+
+    def test_analyze_ldd_output_standard(self):
+        """Test ldd output with standard libraries (libc)."""
+        from commando.core.audit import analyze_ldd_output
+        output = "\tlinux-vdso.so.1 (0x00007ffe343e3000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f9c2a800000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f9c2ab0d000)"
+        result = analyze_ldd_output(output)
+        self.assertCountEqual(result, ["[File Reader/Writer]"])
+
+    def test_analyze_ldd_output_network(self):
+        """Test ldd output with network libraries (libssl, libcurl) and libc."""
+        from commando.core.audit import analyze_ldd_output
+        output = "\tlinux-vdso.so.1 (0x00007ffe343e3000)\n\tlibssl.so.3 => /lib/x86_64-linux-gnu/libssl.so.3 (0x00007f9c2a900000)\n\tlibcurl.so.4 => /lib/x86_64-linux-gnu/libcurl.so.4 (0x00007f9c2aa00000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f9c2a800000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f9c2ab0d000)"
+        result = analyze_ldd_output(output)
+        self.assertCountEqual(result, ["[Network Mutator]", "[File Reader/Writer]"])
+
+    def test_analyze_ldd_output_static(self):
+        """Test ldd output for a statically linked binary (no matches)."""
+        from commando.core.audit import analyze_ldd_output
+        output = "\tnot a dynamic executable"
+        result = analyze_ldd_output(output)
+        self.assertCountEqual(result, [])
+
+    def test_analyze_ldd_output_loose_match(self):
+        """Test ldd output documenting loose matching (substring match)."""
+        from commando.core.audit import analyze_ldd_output
+        output = "\tlibssl_dummy.so => /opt/libssl_dummy/libssl_dummy.so (0x00007f9c2a900000)"
+        result = analyze_ldd_output(output)
+        self.assertCountEqual(result, ["[Network Mutator]"])
     @patch("commando.core.audit.os.killpg")
     @patch("commando.core.audit.os.getpgid")
     @patch("commando.core.audit.subprocess.Popen")

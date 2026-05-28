@@ -233,13 +233,13 @@ def run_quiz(state_manager):
     pause()
 
 
-def _accept_pending_import(cmd, data, state_manager):
-    state_manager.custom_guide[cmd] = data
-    if len(state_manager.custom_guide) > 1000:
-        del state_manager.custom_guide[next(iter(state_manager.custom_guide))]
-    save_json(CUSTOM_DICT_FILE, state_manager.custom_guide)
-    del state_manager.pending_imports[cmd]
-    save_json(PENDING_DICT_FILE, state_manager.pending_imports)
+def _accept_pending_import(cmd, data, custom_guide, pending_imports):
+    custom_guide[cmd] = data
+    if len(custom_guide) > 1000:
+        del custom_guide[next(iter(custom_guide))]
+    save_json(CUSTOM_DICT_FILE, custom_guide)
+    del pending_imports[cmd]
+    save_json(PENDING_DICT_FILE, pending_imports)
 
 
 def review_pending_imports(state_manager):

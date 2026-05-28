@@ -156,6 +156,7 @@ class TestAuditModule(unittest.TestCase):
         output = "\tlibssl_dummy.so => /opt/libssl_dummy/libssl_dummy.so (0x00007f9c2a900000)"
         result = analyze_ldd_output(output)
         self.assertCountEqual(result, ["[Network Mutator]"])
+
     @patch("commando.core.audit.os.killpg")
     @patch("commando.core.audit.os.getpgid")
     @patch("commando.core.audit.subprocess.Popen")

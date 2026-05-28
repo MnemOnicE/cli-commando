@@ -233,6 +233,15 @@ def run_quiz(state_manager):
     pause()
 
 
+def _accept_pending_import(cmd, data, state_manager):
+    state_manager.custom_guide[cmd] = data
+    if len(state_manager.custom_guide) > 1000:
+        del state_manager.custom_guide[next(iter(state_manager.custom_guide))]
+    save_json(CUSTOM_DICT_FILE, state_manager.custom_guide)
+    del state_manager.pending_imports[cmd]
+    save_json(PENDING_DICT_FILE, state_manager.pending_imports)
+
+
 def review_pending_imports(state_manager):
     pending_imports = state_manager.pending_imports
     custom_guide = state_manager.custom_guide
@@ -262,12 +271,7 @@ def review_pending_imports(state_manager):
         while True:
             choice = input(f"{GREEN}➜ {RESET}").strip().lower()
             if choice == "y":
-                custom_guide[cmd] = data
-                if len(custom_guide) > 1000:
-                    del custom_guide[next(iter(custom_guide))]
-                save_json(CUSTOM_DICT_FILE, custom_guide)
-                del pending_imports[cmd]
-                save_json(PENDING_DICT_FILE, pending_imports)
+                _accept_pending_import(cmd, data, state_manager)
                 print(f"{GREEN}Accepted {cmd}.{RESET}")
                 break
             elif choice == "n":
@@ -283,12 +287,7 @@ def review_pending_imports(state_manager):
                 ).strip()
                 if new_desc:
                     data["desc"] = new_desc
-                    custom_guide[cmd] = data
-                    if len(custom_guide) > 1000:
-                        del custom_guide[next(iter(custom_guide))]
-                    save_json(CUSTOM_DICT_FILE, custom_guide)
-                    del pending_imports[cmd]
-                    save_json(PENDING_DICT_FILE, pending_imports)
+                    _accept_pending_import(cmd, data, state_manager)
                     print(f"{GREEN}Accepted {cmd} with edited description.{RESET}")
                 else:
                     print(f"{YELLOW}Edit cancelled.{RESET}")

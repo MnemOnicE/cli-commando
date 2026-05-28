@@ -35,9 +35,9 @@ DEBUG_LOG_FILE = BASE_DIR / "debug.log"
 def load_json(filepath, default_val):
     if filepath.exists():
         try:
-            with open(filepath, "r") as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except (OSError, ValueError):
             pass
     return default_val
 

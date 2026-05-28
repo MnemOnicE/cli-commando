@@ -345,8 +345,19 @@ command_not_found_handle() {{
             )
             bashrc_content = pattern.sub("\n", bashrc_content)
 
-        with open(bashrc_path, "w") as f:
-            f.write(bashrc_content.strip() + "\n" + hook_snippet)
+        real_bashrc_path = os.path.realpath(bashrc_path)
+        temp_bashrc = real_bashrc_path + ".tmp"
+        try:
+            with open(temp_bashrc, "w") as f:
+                f.write(bashrc_content.strip() + "\n" + hook_snippet)
+            os.replace(temp_bashrc, real_bashrc_path)
+        except Exception:
+            if os.path.exists(temp_bashrc):
+                try:
+                    os.remove(temp_bashrc)
+                except OSError:
+                    pass
+            raise
 
         print(f"\n{GREEN}Successfully updated hook in ~/.bashrc.{RESET}")
         print(

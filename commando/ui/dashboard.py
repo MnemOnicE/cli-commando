@@ -271,7 +271,7 @@ def review_pending_imports(state_manager):
         while True:
             choice = input(f"{GREEN}➜ {RESET}").strip().lower()
             if choice == "y":
-                _accept_pending_import(cmd, data, state_manager)
+                _accept_pending_import(cmd, data, custom_guide, pending_imports)
                 print(f"{GREEN}Accepted {cmd}.{RESET}")
                 break
             elif choice == "n":

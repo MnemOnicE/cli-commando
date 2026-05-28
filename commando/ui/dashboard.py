@@ -287,7 +287,7 @@ def review_pending_imports(state_manager):
                 ).strip()
                 if new_desc:
                     data["desc"] = new_desc
-                    _accept_pending_import(cmd, data, state_manager)
+                    _accept_pending_import(cmd, data, custom_guide, pending_imports)
                     print(f"{GREEN}Accepted {cmd} with edited description.{RESET}")
                 else:
                     print(f"{YELLOW}Edit cancelled.{RESET}")

@@ -217,7 +217,7 @@ def run_quiz(state_manager):
     score = 0
     for q_cmd in questions:
         print(f"{CYAN}Question:{RESET} Which command does the following?")
-        print(f"-> \"{all_data[q_cmd]['desc']}\"")
+        print(f'-> "{all_data[q_cmd]["desc"]}"')
         ans = input(f"{GREEN}Your answer: {RESET}").strip().lower()
 
         if ans == q_cmd:
@@ -320,28 +320,35 @@ def install_bash_hook():
                 script_path = resolved
         script_path = os.path.abspath(script_path)
 
-        hook_snippet = f"""\n# cli-commando auto-search hook
+        # Palette fix: double-dash separation
+        hook_snippet = f"""
+# cli-commando auto-search hook
 command_not_found_handle() {{
-    python3 "{script_path}" "$1"
+    python3 "{script_path}" search -- "$1"
     return 127
 }}
 """
+        bashrc_content = ""
         try:
             with open(bashrc_path, "r") as f:
-                if (
-                    "command_not_found_handle()" in f.read()
-                    and "cli-commando" in f.read()
-                ):
-                    print(f"\n{YELLOW}Hook is already installed in ~/.bashrc.{RESET}")
-                    pause()
-                    return
+                bashrc_content = f.read()
         except FileNotFoundError:
             pass
 
-        with open(bashrc_path, "a") as f:
-            f.write(hook_snippet)
+        # Excise old hook entirely
+        if "# cli-commando auto-search hook" in bashrc_content:
+            import re
 
-        print(f"\n{GREEN}Successfully added hook to ~/.bashrc.{RESET}")
+            pattern = re.compile(
+                r"\n?# cli-commando auto-search hook\ncommand_not_found_handle\(\) \{.*?\}\n?",
+                re.DOTALL,
+            )
+            bashrc_content = pattern.sub("\n", bashrc_content)
+
+        with open(bashrc_path, "w") as f:
+            f.write(bashrc_content.strip() + "\n" + hook_snippet)
+
+        print(f"\n{GREEN}Successfully updated hook in ~/.bashrc.{RESET}")
         print(
             "Please run 'source ~/.bashrc' or restart your terminal for it to take effect."
         )

@@ -1,10 +1,9 @@
+import json
 import threading
-
-import yaml
 
 from commando.utils.io import BASE_DIR
 
-CONFIG_FILE = BASE_DIR / "config.yaml"
+CONFIG_FILE = BASE_DIR / "config.json"
 
 DEFAULT_CONFIG = {
     "allowed_paths": [
@@ -40,7 +39,7 @@ class ConfigManager:
             else:
                 try:
                     with open(CONFIG_FILE, "r") as f:
-                        loaded = yaml.safe_load(f)
+                        loaded = json.load(f)
                         if loaded and isinstance(loaded, dict):
                             # Merge defaults for missing keys
                             self.config_data = DEFAULT_CONFIG.copy()
@@ -51,10 +50,10 @@ class ConfigManager:
                     self.config_data = DEFAULT_CONFIG.copy()
 
     def _save_internal(self):
-        temp_file = CONFIG_FILE.with_suffix(".yaml.tmp")
+        temp_file = CONFIG_FILE.with_suffix(".json.tmp")
         try:
             with open(temp_file, "w") as f:
-                yaml.dump(self.config_data, f, default_flow_style=False)
+                json.dump(self.config_data, f, indent=4)
             temp_file.replace(CONFIG_FILE)
         except Exception:
             try:

@@ -128,7 +128,6 @@ class TestAuditModule(unittest.TestCase):
         }
         self.scanner_module = MagicMock()
 
-
     def test_analyze_ldd_output_standard(self):
         """Test ldd output with standard libraries (libc)."""
         from commando.core.audit import analyze_ldd_output

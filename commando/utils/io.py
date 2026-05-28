@@ -37,7 +37,7 @@ def load_json(filepath, default_val):
         try:
             with open(filepath, "r") as f:
                 return json.load(f)
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             pass
     return default_val
 

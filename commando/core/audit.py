@@ -70,9 +70,13 @@ def search_command(
                     # In headless mode, never assume execution consent for custom imports
                     execute_strace = False
                 else:
-                    ans = input(
-                        f"{YELLOW}Warning: '{base_command}' is a custom import. Append '--help' for kinetic audit? (y/N): {RESET}"
-                    ).strip()
+                    try:
+                        ans = input(
+                            f"{YELLOW}Warning: '{base_command}' is a custom import. Append '--help' for kinetic audit? (y/N): {RESET}"
+                        ).strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        ans = "n"
+
                     if ans == "y":
                         strace_args.append("--help")
                     else:

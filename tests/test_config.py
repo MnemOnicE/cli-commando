@@ -15,14 +15,16 @@ class TestConfigManagerGet(unittest.TestCase):
         # Mock exists to return False by default so we get DEFAULT_CONFIG
         self.mock_config_file.exists.return_value = False
 
-        # Mock with_suffix so _save_internal doesn't fail trying to create temp_file
-        self.mock_config_file.with_suffix.return_value.replace.return_value = None
+        # Patch _save_internal to prevent TypeError when open() is called with a Mock path
+        self.patcher_save = patch.object(ConfigManager, '_save_internal')
+        self.patcher_save.start()
 
         # Initialize ConfigManager
         self.config_manager = ConfigManager()
 
     def tearDown(self):
         self.patcher.stop()
+        self.patcher_save.stop()
         ConfigManager._instance = None
 
     def test_get_existing_key(self):

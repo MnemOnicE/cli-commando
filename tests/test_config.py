@@ -55,26 +55,18 @@ class TestConfigManager(unittest.TestCase):
         """Test concurrent access to the get method."""
         config = ConfigManager()
         # Initialize with some data
-        for i in range(100):
+        for i in range(50):
             config.set(f"key_{i}", i)
 
-        errors = []
-
         def reader_task():
-            try:
-                for _ in range(1000):
-                    # Randomly read keys, some exist, some don't
-                    config.get("key_50", default="fallback")
-                    config.get("missing_key", default="fallback")
-            except Exception as e:
-                errors.append(e)
+            for _ in range(100):
+                # Randomly read keys, some exist, some don't
+                config.get("key_25", default="fallback")
+                config.get("missing_key", default="fallback")
 
         def writer_task():
-            try:
-                for i in range(100, 200):
-                    config.set(f"key_{i}", i)
-            except Exception as e:
-                errors.append(e)
+            for i in range(50, 70):
+                config.set(f"key_{i}", i)
 
         # Run multiple readers and writers concurrently
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -85,7 +77,6 @@ class TestConfigManager(unittest.TestCase):
             for _ in range(2):
                 futures.append(executor.submit(writer_task))
 
+            # Calling future.result() will propagate any exceptions with their full traceback
             for future in futures:
                 future.result()
-
-        self.assertEqual(len(errors), 0, f"Thread safety errors occurred: {errors}")

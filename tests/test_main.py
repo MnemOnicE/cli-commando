@@ -11,7 +11,6 @@ from commando.utils.io import load_json, save_json
 
 
 class TestCommandoUtilities(unittest.TestCase):
-
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.temp_dir_path = Path(self.temp_dir.name)
@@ -170,7 +169,9 @@ class TestAuditModule(unittest.TestCase):
             sys.stdout = sys.__stdout__
 
         # Verify that os.killpg was called with the correct process group ID and signal
-        mock_getpgid.assert_called_once_with(12345)
+        # With the fix, getpgid is called twice
+        mock_getpgid.assert_called_with(12345)
+        self.assertEqual(mock_getpgid.call_count, 2)
         mock_killpg.assert_called_once_with(54321, signal.SIGKILL)
 
 
@@ -223,8 +224,9 @@ class TestScannerModule(unittest.TestCase):
         mock_run.side_effect = side_effect
 
         # Mock the 'with open' for the header check to return ELF header
-        with patch("builtins.open", unittest.mock.mock_open(read_data=b"\x7fELF")):
-
+        with patch(
+            "builtins.open", unittest.mock.mock_open(read_data=b"\x7fELF")
+        ), patch("commando.utils.io.input", return_value=""):
             # Capture output
             import sys
             from io import StringIO

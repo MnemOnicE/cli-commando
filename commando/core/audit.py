@@ -55,17 +55,43 @@ def search_command(
                 print(f"\n{MAGENTA}★ Kinetic Audit for '{base_command}' ★{RESET}\n")
                 print(f"{YELLOW}Running behavioral analysis via strace...{RESET}")
 
+            # Sentinel fix: Kinetic Audit Paradox
+            execute_strace = True
+            strace_args = [
+                "strace",
+                "-f",
+                "-e",
+                "trace=network,file,process",
+                base_command,
+            ]
+
+            if base_command in state_manager.custom_guide:
+                if headless:
+                    # In headless mode, never assume execution consent for custom imports
+                    execute_strace = False
+                else:
+                    try:
+                        ans = input(
+                            f"{YELLOW}Warning: '{base_command}' is a custom import. Append '--help' for kinetic audit? (y/N): {RESET}"
+                        ).strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        ans = "n"
+
+                    if ans == "y":
+                        strace_args.append("--help")
+                    else:
+                        execute_strace = False
+            else:
+                strace_args.append("--help")
+
             # BOOM fix: process group obliteration with fallback
+            if not execute_strace:
+                # Force fallback to static ldd
+                raise FileNotFoundError("Audit aborted by user or headless constraint.")
+
             try:
                 proc = subprocess.Popen(
-                    [
-                        "strace",
-                        "-f",
-                        "-e",
-                        "trace=network,file,process",
-                        base_command,
-                        "--help",
-                    ],
+                    strace_args,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -81,7 +107,11 @@ def search_command(
                     # Timeout: Try killing process group
                     try:
                         if hasattr(os, "killpg") and hasattr(os, "getpgid"):
-                            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                            # Bolt fix: Process Group Fratricide lock
+                            if os.getpgid(proc.pid) != os.getpgrp():
+                                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                            else:
+                                proc.kill()
                         else:
                             proc.kill()
                     except (PermissionError, ProcessLookupError):

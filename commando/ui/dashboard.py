@@ -141,7 +141,7 @@ def factory_reset(state_manager):
         pause()
 
 
-def explore_category(state_manager):
+def explore_category(state_manager, search_command_fn):
     all_known = state_manager.get_all_known_commands()
     categories = sorted(list(set(data["category"] for data in all_known.values())))
 
@@ -163,7 +163,16 @@ def explore_category(state_manager):
             for cmd, data in all_known.items():
                 if data["category"] == selected_cat:
                     print(f" • {CYAN}{BOLD}{cmd}{RESET}: {data['desc']}")
-            pause()
+
+            print(f"\n{YELLOW}Options:{RESET}")
+            print(f" - Type a command name to search for it.")
+            print(" - Press Enter to return to the menu.")
+
+            search_choice = input(f"\n{GREEN}➜ {RESET}").strip()
+            if search_choice:
+                search_command_fn(search_choice.split()[0])
+            else:
+                pause()
         else:
             print(f"{RED}Invalid selection.{RESET}")
             pause()
@@ -188,17 +197,33 @@ def manage_imports(state_manager):
         print(f" • {badge} {CYAN}{BOLD}{cmd}{RESET}: {short_desc}")
 
     print(f"\n{YELLOW}Options:{RESET}")
-    print(f" - Type a command name to {RED}DELETE{RESET} it from the database.")
+    print(f" - Type a command name (or comma-separated list) to {RED}DELETE{RESET} from the database.")
+    print(f" - Type {RED}all{RESET} to clear all custom imports.")
     print(" - Press Enter to return to the menu.")
 
     choice = input(f"\n{GREEN}➜ {RESET}").strip().lower()
-    if choice in custom_guide:
-        del custom_guide[choice]
-        save_json(CUSTOM_DICT_FILE, custom_guide)
-        print(f"{YELLOW}Successfully deleted '{choice}'.{RESET}")
+    if choice == "all":
+        confirm = input(f"{RED}Are you sure you want to delete ALL custom imports? (y/n): {RESET}").strip().lower()
+        if confirm == 'y':
+            custom_guide.clear()
+            save_json(CUSTOM_DICT_FILE, custom_guide)
+            print(f"{YELLOW}Successfully deleted all custom imports.{RESET}")
         pause()
     elif choice:
-        print(f"{RED}Command not found in custom imports.{RESET}")
+        deleted = []
+        not_found = []
+        for cmd in [c.strip() for c in choice.split(",") if c.strip()]:
+            if cmd in custom_guide:
+                del custom_guide[cmd]
+                deleted.append(cmd)
+            else:
+                not_found.append(cmd)
+
+        if deleted:
+            save_json(CUSTOM_DICT_FILE, custom_guide)
+            print(f"{YELLOW}Successfully deleted: {', '.join(deleted)}{RESET}")
+        if not_found:
+            print(f"{RED}Not found in custom imports: {', '.join(not_found)}{RESET}")
         pause()
 
 
@@ -430,7 +455,7 @@ def main_loop(state_manager, search_command_fn, auto_scan_fn):
             search_command_fn(cmd)
             continue
         elif raw_input == "2":
-            explore_category(state_manager)
+            explore_category(state_manager, search_command_fn)
             continue
         elif raw_input == "3":
             manage_imports(state_manager)

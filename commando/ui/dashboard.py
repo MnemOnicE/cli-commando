@@ -84,17 +84,17 @@ def view_stats_and_mastery(state_manager):
     print(f"\n{CYAN}{BOLD}Command Mastery:{RESET}")
     for cmd, score in sorted_history:
         # Mastery goes up to 5
-        score = min(5, max(0, score))
-        filled = "█" * score
-        empty = "░" * (5 - score)
+        display_score = min(5, max(0, score))
+        filled = "█" * display_score
+        empty = "░" * (5 - display_score)
         bar = f"{filled}{empty}"
 
         # Color coding the progress bar
-        if score >= 4:
+        if display_score >= 4:
             bar_color = GREEN
-        elif score >= 2:
+        if 2 <= display_score < 4:
             bar_color = YELLOW
-        else:
+        if display_score < 2:
             bar_color = RED
 
         print(f" {bar_color}[{bar}]{RESET} {BOLD}{cmd}{RESET}")
@@ -260,10 +260,15 @@ def run_quiz(state_manager):
 
         if ans == q_cmd:
             print(f"{GREEN}Correct!{RESET}\n")
-            session_history[q_cmd] = min(5, session_history.get(q_cmd, 0) + 1)
+            val = min(5, session_history.get(q_cmd, 0) + 1)
+            if q_cmd in session_history:
+                session_history.pop(q_cmd)
+            session_history[q_cmd] = val
             score += 1
         else:
             print(f"{RED}Incorrect.{RESET} The answer was '{BOLD}{q_cmd}{RESET}'.\n")
+            if q_cmd in session_history:
+                session_history.pop(q_cmd)
             session_history[q_cmd] = 0
 
     save_json(HISTORY_FILE, session_history)

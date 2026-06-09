@@ -81,3 +81,23 @@ def pause():
         input(f"\n{YELLOW}Press Enter to continue...{RESET}")
     except (EOFError, KeyboardInterrupt):
         print()
+
+
+def get_category_color(category):
+    cat_lower = category.lower()
+    if "file" in cat_lower or "disk" in cat_lower:
+        return CYAN
+    elif "network" in cat_lower or "web" in cat_lower:
+        return MAGENTA
+    elif "process" in cat_lower or "system" in cat_lower:
+        return RED
+    elif "navig" in cat_lower or "search" in cat_lower:
+        return GREEN
+    elif "text" in cat_lower or "edit" in cat_lower:
+        return YELLOW
+    else:
+        return BOLD
+
+def format_badge(category):
+    color = get_category_color(category)
+    return f"[{color}{category}{RESET}]"

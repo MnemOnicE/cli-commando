@@ -19,19 +19,20 @@ from commando.utils.io import (
     clear_screen,
     pause,
     save_json,
+    get_category_color,
+    format_badge,
 )
 
 
 def print_dashboard(session_history, pending_imports):
     clear_screen()
-    print(f"{CYAN}{BOLD}=============================================={RESET}")
-    print(f"{CYAN}{BOLD}      Terminal Command Explorer & Tutor       {RESET}")
-    print(f"{CYAN}{BOLD}=============================================={RESET}")
+    print(f"{CYAN}{BOLD}╔════════════════════════════════════════════════════╗{RESET}")
+    print(f"{CYAN}{BOLD}║         Terminal Command Explorer & Tutor          ║{RESET}")
+    print(f"{CYAN}{BOLD}╚════════════════════════════════════════════════════╝{RESET}\n")
 
     if session_history:
-        print(
-            f"{MAGENTA}Recent: {', '.join(list(session_history.keys())[-5:])}{RESET}\n"
-        )
+        recent = list(session_history.keys())[-5:]
+        print(f"{MAGENTA}{BOLD}Recent:{RESET} {', '.join(recent)}\n")
 
     print(f" {GREEN}[1]{RESET} Explore Random Command")
     print(f" {GREEN}[2]{RESET} Explore by Category")
@@ -44,8 +45,9 @@ def print_dashboard(session_history, pending_imports):
             f" {CYAN}[7]{RESET} Review Pending Imports ({len(pending_imports)} waiting)"
         )
     print(f" {MAGENTA}[8]{RESET} Install Bash Hook")
+    print(f" {GREEN}[9]{RESET} View Stats & Mastery")
     print(f" {RED}[0]{RESET} Exit & Quiz Mode")
-    print(f"{YELLOW}Or type a command to search (e.g., ls, nano){RESET}\n")
+    print(f"\n{YELLOW}Or type a command to search (e.g., ls, nano){RESET}\n")
 
 
 def view_debug_log():
@@ -63,6 +65,41 @@ def view_debug_log():
     print("\n")
     pause()
 
+
+
+def view_stats_and_mastery(state_manager):
+    clear_screen()
+    session_history = state_manager.session_history
+    if not session_history:
+        print(f"{YELLOW}No stats available yet. Start exploring commands!{RESET}")
+        pause()
+        return
+
+    print(f"{MAGENTA}★ User Stats & Mastery ★{RESET}\n")
+    print(f"Total commands explored: {len(session_history)}")
+
+    # Sort history by mastery level (score) descending, then by name
+    sorted_history = sorted(session_history.items(), key=lambda x: (-x[1], x[0]))
+
+    print(f"\n{CYAN}{BOLD}Command Mastery:{RESET}")
+    for cmd, score in sorted_history:
+        # Mastery goes up to 5
+        score = min(5, max(0, score))
+        filled = "█" * score
+        empty = "░" * (5 - score)
+        bar = f"{filled}{empty}"
+
+        # Color coding the progress bar
+        if score >= 4:
+            bar_color = GREEN
+        elif score >= 2:
+            bar_color = YELLOW
+        else:
+            bar_color = RED
+
+        print(f" {bar_color}[{bar}]{RESET} {BOLD}{cmd}{RESET}")
+
+    pause()
 
 def factory_reset(state_manager):
     clear_screen()
@@ -122,7 +159,7 @@ def explore_category(state_manager):
         if 0 <= idx < len(categories):
             selected_cat = categories[idx]
             clear_screen()
-            print(f"{YELLOW}--- {selected_cat} Commands ---{RESET}\n")
+            print(f"{YELLOW}--- {format_badge(selected_cat)} Commands ---{RESET}\n")
             for cmd, data in all_known.items():
                 if data["category"] == selected_cat:
                     print(f" • {CYAN}{BOLD}{cmd}{RESET}: {data['desc']}")
@@ -147,7 +184,8 @@ def manage_imports(state_manager):
         short_desc = (
             (data["desc"][:60] + "...") if len(data["desc"]) > 60 else data["desc"]
         )
-        print(f" • {CYAN}{BOLD}{cmd}{RESET}: {short_desc}")
+        badge = format_badge(data.get("category", "Custom"))
+        print(f" • {badge} {CYAN}{BOLD}{cmd}{RESET}: {short_desc}")
 
     print(f"\n{YELLOW}Options:{RESET}")
     print(f" - Type a command name to {RED}DELETE{RESET} it from the database.")
@@ -261,7 +299,7 @@ def review_pending_imports(state_manager):
         clear_screen()
         data = pending_imports[cmd]
         print(f"{CYAN}Command:{RESET} {cmd}")
-        print(f"Category:    [{MAGENTA}{data['category']}{RESET}]")
+        print(f"Category:    {format_badge(data['category'])}")
         print(f"Explanation: {data['desc']}")
         print(f"Example:     {data['example']}")
         print(
@@ -406,6 +444,9 @@ def main_loop(state_manager, search_command_fn, auto_scan_fn):
             continue
         elif raw_input == "8":
             install_bash_hook()
+            continue
+        elif raw_input == "9":
+            view_stats_and_mastery(state_manager)
             continue
         elif raw_input == "0" or raw_input.lower() == "done":
             choice = (

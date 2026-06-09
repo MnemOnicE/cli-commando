@@ -44,7 +44,10 @@ def search_command(
     all_known = state_manager.get_all_known_commands()
 
     if not headless:
-        session_history[base_command] = session_history.get(base_command, 0) + 1
+        val = session_history.get(base_command, 0) + 1
+        if base_command in session_history:
+            session_history.pop(base_command)
+        session_history[base_command] = val
         state_manager.save_history()
 
     if base_command in all_known:

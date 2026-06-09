@@ -170,9 +170,7 @@ def explore_category(state_manager, search_command_fn):
 
             search_choice = input(f"\n{GREEN}➜ {RESET}").strip()
             if search_choice:
-                search_command_fn(search_choice.split()[0])
-            else:
-                pause()
+                search_command_fn(search_choice.split()[0].lower())
         else:
             print(f"{RED}Invalid selection.{RESET}")
             pause()
@@ -206,13 +204,13 @@ def manage_imports(state_manager):
         confirm = input(f"{RED}Are you sure you want to delete ALL custom imports? (y/n): {RESET}").strip().lower()
         if confirm == 'y':
             custom_guide.clear()
-            save_json(CUSTOM_DICT_FILE, custom_guide)
+            state_manager.save_custom()
             print(f"{YELLOW}Successfully deleted all custom imports.{RESET}")
         pause()
     elif choice:
         deleted = []
         not_found = []
-        for cmd in [c.strip() for c in choice.split(",") if c.strip()]:
+        for cmd in dict.fromkeys(c.strip() for c in choice.split(",") if c.strip()):
             if cmd in custom_guide:
                 del custom_guide[cmd]
                 deleted.append(cmd)
@@ -220,7 +218,7 @@ def manage_imports(state_manager):
                 not_found.append(cmd)
 
         if deleted:
-            save_json(CUSTOM_DICT_FILE, custom_guide)
+            state_manager.save_custom()
             print(f"{YELLOW}Successfully deleted: {', '.join(deleted)}{RESET}")
         if not_found:
             print(f"{RED}Not found in custom imports: {', '.join(not_found)}{RESET}")

@@ -99,6 +99,49 @@ class TestCommandoUtilities(unittest.TestCase):
         valid_utf8 = "Привет 世界"
         self.assertEqual(sanitize_text(valid_utf8), valid_utf8)
 
+    def test_analyze_strace_output_realistic(self):
+        """Test analyze_strace_output with realistic, full-format multi-line strace output."""
+        from commando.core.audit import analyze_strace_output
+
+        realistic_strace = (
+            "execve(\"/usr/bin/curl\", [\"curl\", \"https://example.com\"], 0x7ffd5e39d7b0 /* 49 vars */) = 0\n"
+            "brk(NULL)                               = 0x55df2b6b5000\n"
+            "arch_prctl(0x3001 /* ARCH_??? */, 0x7ffeeb9a0d80) = -1 EINVAL (Invalid argument)\n"
+            "access(\"/etc/ld.so.preload\", R_OK)      = -1 ENOENT (No such file or directory)\n"
+            "openat(AT_FDCWD, \"/etc/ld.so.cache\", O_RDONLY|O_CLOEXEC) = 3\n"
+            "fstat(3, {st_mode=S_IFREG|0644, st_size=104060, ...}) = 0\n"
+            "mmap(NULL, 104060, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f2a1b9e2000\n"
+            "close(3)                                = 0\n"
+            "openat(AT_FDCWD, \"/lib/x86_64-linux-gnu/libcurl.so.4\", O_RDONLY|O_CLOEXEC) = 3\n"
+            "read(3, \"\\177ELF\\2\\1\\1\\0\\0\\0\\0\\0\\0\\0\\0\\0\\3\\0>\\0\\1\\0\\0\\0p\\321\\2\\0\\0\\0\\0\\0\"..., 832) = 832\n"
+            "fstat(3, {st_mode=S_IFREG|0644, st_size=584608, ...}) = 0\n"
+            "close(3)                                = 0\n"
+            "socket(AF_INET, SOCK_DGRAM|SOCK_CLOEXEC, IPPROTO_IP) = 3\n"
+            "connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr(\"8.8.8.8\")}, 16) = 0\n"
+            "sendto(3, \"\\232\\330\\1\\0\\0\\1\\0\\0\\0\\0\\0\\0\\7example\\3com\\0\\0\\1\\0\\1\", 29, MSG_NOSIGNAL, NULL, 0) = 29\n"
+            "recvfrom(3, \"\\232\\330\\201\\200\\0\\1\\0\\1\\0\\0\\0\\0\\7example\\3com\\0\\0\\1\\0\\1\\300\\f\"..., 1024, 0, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr(\"8.8.8.8\")}, [28->16]) = 45\n"
+            "close(3)                                = 0\n"
+            "socket(AF_INET, SOCK_STREAM, IPPROTO_TCP) = 3\n"
+            "connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr(\"93.184.216.34\")}, 16) = -1 EINPROGRESS (Operation now in progress)\n"
+            "write(1, \"<html>\\n<body>\\n<h1>Example Domain\"..., 1256) = 1256\n"
+        )
+
+        tags = analyze_strace_output(realistic_strace)
+
+        self.assertCountEqual(
+            tags,
+            ["[Process Spawner]", "[File Reader/Writer]", "[Network Mutator]"]
+        )
+
+        # Test deduplication - output with many openat but only one tag expected
+        dedup_strace = (
+            "openat(AT_FDCWD, \"/etc/ld.so.cache\", O_RDONLY|O_CLOEXEC) = 3\n"
+            "openat(AT_FDCWD, \"/lib/x86_64-linux-gnu/libc.so.6\", O_RDONLY|O_CLOEXEC) = 3\n"
+            "openat(AT_FDCWD, \"/usr/lib/locale/locale-archive\", O_RDONLY|O_CLOEXEC) = 3\n"
+        )
+        tags_dedup = analyze_strace_output(dedup_strace)
+        self.assertCountEqual(tags_dedup, ["[File Reader/Writer]"])
+
     @patch("subprocess.run")
     def test_subprocess_mocking(self, mock_run):
         """Fortify Test Suite: Mock the subprocess.run calls to deterministically test logic."""

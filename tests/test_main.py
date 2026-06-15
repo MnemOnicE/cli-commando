@@ -135,9 +135,9 @@ class TestCommandoUtilities(unittest.TestCase):
 
         # Test deduplication - output with many openat but only one tag expected
         dedup_strace = (
-            "openat(AT_FDCWD, \"/etc/ld.so.cache\", O_RDONLY|O_CLOEXEC) = 3\n"
-            "openat(AT_FDCWD, \"/lib/x86_64-linux-gnu/libc.so.6\", O_RDONLY|O_CLOEXEC) = 3\n"
-            "openat(AT_FDCWD, \"/usr/lib/locale/locale-archive\", O_RDONLY|O_CLOEXEC) = 3\n"
+            'openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3\n'
+            'openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3\n'
+            'openat(AT_FDCWD, "/usr/lib/locale/locale-archive", O_RDONLY|O_CLOEXEC) = 3\n'
         )
         tags_dedup = analyze_strace_output(dedup_strace)
         self.assertCountEqual(tags_dedup, ["[File Reader/Writer]"])

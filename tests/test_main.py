@@ -104,33 +104,32 @@ class TestCommandoUtilities(unittest.TestCase):
         from commando.core.audit import analyze_strace_output
 
         realistic_strace = (
-            "execve(\"/usr/bin/curl\", [\"curl\", \"https://example.com\"], 0x7ffd5e39d7b0 /* 49 vars */) = 0\n"
+            'execve("/usr/bin/curl", ["curl", "https://example.com"], 0x7ffd5e39d7b0 /* 49 vars */) = 0\n'
             "brk(NULL)                               = 0x55df2b6b5000\n"
             "arch_prctl(0x3001 /* ARCH_??? */, 0x7ffeeb9a0d80) = -1 EINVAL (Invalid argument)\n"
-            "access(\"/etc/ld.so.preload\", R_OK)      = -1 ENOENT (No such file or directory)\n"
-            "openat(AT_FDCWD, \"/etc/ld.so.cache\", O_RDONLY|O_CLOEXEC) = 3\n"
+            'access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)\n'
+            'openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3\n'
             "fstat(3, {st_mode=S_IFREG|0644, st_size=104060, ...}) = 0\n"
             "mmap(NULL, 104060, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f2a1b9e2000\n"
             "close(3)                                = 0\n"
-            "openat(AT_FDCWD, \"/lib/x86_64-linux-gnu/libcurl.so.4\", O_RDONLY|O_CLOEXEC) = 3\n"
-            "read(3, \"\\177ELF\\2\\1\\1\\0\\0\\0\\0\\0\\0\\0\\0\\0\\3\\0>\\0\\1\\0\\0\\0p\\321\\2\\0\\0\\0\\0\\0\"..., 832) = 832\n"
+            'openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libcurl.so.4", O_RDONLY|O_CLOEXEC) = 3\n'
+            'read(3, "\\177ELF\\2\\1\\1\\0\\0\\0\\0\\0\\0\\0\\0\\0\\3\\0>\\0\\1\\0\\0\\0p\\321\\2\\0\\0\\0\\0\\0"..., 832) = 832\n'
             "fstat(3, {st_mode=S_IFREG|0644, st_size=584608, ...}) = 0\n"
             "close(3)                                = 0\n"
             "socket(AF_INET, SOCK_DGRAM|SOCK_CLOEXEC, IPPROTO_IP) = 3\n"
-            "connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr(\"8.8.8.8\")}, 16) = 0\n"
-            "sendto(3, \"\\232\\330\\1\\0\\0\\1\\0\\0\\0\\0\\0\\0\\7example\\3com\\0\\0\\1\\0\\1\", 29, MSG_NOSIGNAL, NULL, 0) = 29\n"
-            "recvfrom(3, \"\\232\\330\\201\\200\\0\\1\\0\\1\\0\\0\\0\\0\\7example\\3com\\0\\0\\1\\0\\1\\300\\f\"..., 1024, 0, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr(\"8.8.8.8\")}, [28->16]) = 45\n"
+            'connect(3, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("8.8.8.8")}, 16) = 0\n'
+            'sendto(3, "\\232\\330\\1\\0\\0\\1\\0\\0\\0\\0\\0\\0\\7example\\3com\\0\\0\\1\\0\\1", 29, MSG_NOSIGNAL, NULL, 0) = 29\n'
+            'recvfrom(3, "\\232\\330\\201\\200\\0\\1\\0\\1\\0\\0\\0\\0\\7example\\3com\\0\\0\\1\\0\\1\\300\\f"..., 1024, 0, {sa_family=AF_INET, sin_port=htons(53), sin_addr=inet_addr("8.8.8.8")}, [28->16]) = 45\n'
             "close(3)                                = 0\n"
             "socket(AF_INET, SOCK_STREAM, IPPROTO_TCP) = 3\n"
-            "connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr(\"93.184.216.34\")}, 16) = -1 EINPROGRESS (Operation now in progress)\n"
-            "write(1, \"<html>\\n<body>\\n<h1>Example Domain\"..., 1256) = 1256\n"
+            'connect(3, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("93.184.216.34")}, 16) = -1 EINPROGRESS (Operation now in progress)\n'
+            'write(1, "<html>\\n<body>\\n<h1>Example Domain"..., 1256) = 1256\n'
         )
 
         tags = analyze_strace_output(realistic_strace)
 
         self.assertCountEqual(
-            tags,
-            ["[Process Spawner]", "[File Reader/Writer]", "[Network Mutator]"]
+            tags, ["[Process Spawner]", "[File Reader/Writer]", "[Network Mutator]"]
         )
 
         # Test deduplication - output with many openat but only one tag expected
@@ -155,6 +154,39 @@ class TestCommandoUtilities(unittest.TestCase):
         self.assertIn("[File Reader/Writer]", tags)
 
 
+class TestStateManager(unittest.TestCase):
+    @patch("commando.main.load_json")
+    def test_get_all_known_commands(self, mock_load_json):
+        from commando.main import StateManager, BEGINNER_GUIDE
+
+        # Instantiate StateManager
+        sm = StateManager()
+
+        # Manually set custom guide to test merging
+        sm.custom_guide = {
+            "my_new_cmd": {"desc": "A new custom command", "category": "Custom"},
+            "ls": {"desc": "Overridden ls command description", "category": "Custom"},
+        }
+
+        all_cmds = sm.get_all_known_commands()
+
+        # 1. Verify original commands from BEGINNER_GUIDE are present
+        self.assertIn("mkdir", all_cmds)
+        self.assertEqual(all_cmds["mkdir"]["desc"], BEGINNER_GUIDE["mkdir"]["desc"])
+
+        # 2. Verify new custom commands are present
+        self.assertIn("my_new_cmd", all_cmds)
+        self.assertEqual(all_cmds["my_new_cmd"]["desc"], "A new custom command")
+
+        # 3. Verify custom commands override BEGINNER_GUIDE if keys overlap
+        self.assertIn("ls", all_cmds)
+        self.assertEqual(all_cmds["ls"]["desc"], "Overridden ls command description")
+
+        # 4. Verify total length is correct
+        # BEGINNER_GUIDE length + 1 (since ls overlaps and my_new_cmd is new)
+        self.assertEqual(len(all_cmds), len(BEGINNER_GUIDE) + 1)
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -174,6 +206,7 @@ class TestAuditModule(unittest.TestCase):
     def test_analyze_ldd_output_standard(self):
         """Test ldd output with standard libraries (libc)."""
         from commando.core.audit import analyze_ldd_output
+
         output = "\tlinux-vdso.so.1 (0x00007ffe343e3000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f9c2a800000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f9c2ab0d000)"
         result = analyze_ldd_output(output)
         self.assertCountEqual(result, ["[File Reader/Writer]"])
@@ -181,6 +214,7 @@ class TestAuditModule(unittest.TestCase):
     def test_analyze_ldd_output_network(self):
         """Test ldd output with network libraries (libssl, libcurl) and libc."""
         from commando.core.audit import analyze_ldd_output
+
         output = "\tlinux-vdso.so.1 (0x00007ffe343e3000)\n\tlibssl.so.3 => /lib/x86_64-linux-gnu/libssl.so.3 (0x00007f9c2a900000)\n\tlibcurl.so.4 => /lib/x86_64-linux-gnu/libcurl.so.4 (0x00007f9c2aa00000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f9c2a800000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f9c2ab0d000)"
         result = analyze_ldd_output(output)
         self.assertCountEqual(result, ["[Network Mutator]", "[File Reader/Writer]"])
@@ -188,6 +222,7 @@ class TestAuditModule(unittest.TestCase):
     def test_analyze_ldd_output_static(self):
         """Test ldd output for a statically linked binary (no matches)."""
         from commando.core.audit import analyze_ldd_output
+
         output = "\tnot a dynamic executable"
         result = analyze_ldd_output(output)
         self.assertCountEqual(result, [])
@@ -195,6 +230,7 @@ class TestAuditModule(unittest.TestCase):
     def test_analyze_ldd_output_loose_match(self):
         """Test ldd output documenting loose matching (substring match)."""
         from commando.core.audit import analyze_ldd_output
+
         output = "\tlibssl_dummy.so => /opt/libssl_dummy/libssl_dummy.so (0x00007f9c2a900000)"
         result = analyze_ldd_output(output)
         self.assertCountEqual(result, ["[Network Mutator]"])

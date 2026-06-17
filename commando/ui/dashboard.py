@@ -2,6 +2,7 @@ import os
 import random
 import shutil
 import sys
+from collections import defaultdict
 
 from commando.utils.io import (
     BLACKLIST_FILE,
@@ -143,7 +144,13 @@ def factory_reset(state_manager):
 
 def explore_category(state_manager, search_command_fn):
     all_known = state_manager.get_all_known_commands()
-    categories = sorted(list(set(data["category"] for data in all_known.values())))
+
+    # Pre-group commands by category
+    grouped = defaultdict(list)
+    for cmd, data in all_known.items():
+        grouped[data["category"]].append((cmd, data))
+
+    categories = sorted(grouped.keys())
 
     clear_screen()
     print(f"{MAGENTA}★ Categories ★{RESET}\n")
@@ -160,9 +167,10 @@ def explore_category(state_manager, search_command_fn):
             selected_cat = categories[idx]
             clear_screen()
             print(f"{YELLOW}--- {format_badge(selected_cat)} Commands ---{RESET}\n")
-            for cmd, data in all_known.items():
-                if data["category"] == selected_cat:
-                    print(f" • {CYAN}{BOLD}{cmd}{RESET}: {data['desc']}")
+
+            # Print pre-grouped commands
+            for cmd, data in grouped[selected_cat]:
+                print(f" • {CYAN}{BOLD}{cmd}{RESET}: {data['desc']}")
 
             print(f"\n{YELLOW}Options:{RESET}")
             print(f" - Type a command name to search for it.")

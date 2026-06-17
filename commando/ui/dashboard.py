@@ -204,13 +204,16 @@ def manage_imports(state_manager):
 
     choice = input(f"\n{GREEN}➜ {RESET}").strip().lower()
     if choice == "all":
-        confirm = (
-            input(
-                f"{RED}Are you sure you want to delete ALL custom imports? (y/n): {RESET}"
+        try:
+            confirm = (
+                input(
+                    f"{RED}Are you sure you want to delete ALL custom imports? (y/n): {RESET}"
+                )
+                .strip()
+                .lower()
             )
-            .strip()
-            .lower()
-        )
+        except (KeyboardInterrupt, EOFError):
+            confirm = "n"
         if confirm == "y":
             custom_guide.clear()
             state_manager.save_custom()

@@ -148,7 +148,8 @@ def explore_category(state_manager, search_command_fn):
     # Pre-group commands by category
     grouped = defaultdict(list)
     for cmd, data in all_known.items():
-        grouped[data["category"]].append((cmd, data))
+        category = data.get("category", "Custom")
+        grouped[category].append((cmd, data))
 
     categories = sorted(grouped.keys())
 

@@ -19,7 +19,6 @@ from commando.utils.io import (
     clear_screen,
     pause,
     save_json,
-    get_category_color,
     format_badge,
 )
 
@@ -28,7 +27,9 @@ def print_dashboard(session_history, pending_imports):
     clear_screen()
     print(f"{CYAN}{BOLD}╔════════════════════════════════════════════════════╗{RESET}")
     print(f"{CYAN}{BOLD}║         Terminal Command Explorer & Tutor          ║{RESET}")
-    print(f"{CYAN}{BOLD}╚════════════════════════════════════════════════════╝{RESET}\n")
+    print(
+        f"{CYAN}{BOLD}╚════════════════════════════════════════════════════╝{RESET}\n"
+    )
 
     if session_history:
         recent = list(session_history.keys())[-5:]
@@ -66,7 +67,6 @@ def view_debug_log():
     pause()
 
 
-
 def view_stats_and_mastery(state_manager):
     clear_screen()
     session_history = state_manager.session_history
@@ -100,6 +100,7 @@ def view_stats_and_mastery(state_manager):
         print(f" {bar_color}[{bar}]{RESET} {BOLD}{cmd}{RESET}")
 
     pause()
+
 
 def factory_reset(state_manager):
     clear_screen()
@@ -195,14 +196,22 @@ def manage_imports(state_manager):
         print(f" • {badge} {CYAN}{BOLD}{cmd}{RESET}: {short_desc}")
 
     print(f"\n{YELLOW}Options:{RESET}")
-    print(f" - Type a command name (or comma-separated list) to {RED}DELETE{RESET} from the database.")
+    print(
+        f" - Type a command name (or comma-separated list) to {RED}DELETE{RESET} from the database."
+    )
     print(f" - Type {RED}all{RESET} to clear all custom imports.")
     print(" - Press Enter to return to the menu.")
 
     choice = input(f"\n{GREEN}➜ {RESET}").strip().lower()
     if choice == "all":
-        confirm = input(f"{RED}Are you sure you want to delete ALL custom imports? (y/n): {RESET}").strip().lower()
-        if confirm == 'y':
+        confirm = (
+            input(
+                f"{RED}Are you sure you want to delete ALL custom imports? (y/n): {RESET}"
+            )
+            .strip()
+            .lower()
+        )
+        if confirm == "y":
             custom_guide.clear()
             state_manager.save_custom()
             print(f"{YELLOW}Successfully deleted all custom imports.{RESET}")

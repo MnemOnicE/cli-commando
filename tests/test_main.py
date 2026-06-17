@@ -159,6 +159,9 @@ class TestStateManager(unittest.TestCase):
     def test_get_all_known_commands(self, mock_load_json):
         from commando.main import StateManager, BEGINNER_GUIDE
 
+        # Configure mock to return the default value passed to load_json
+        mock_load_json.side_effect = lambda filepath, default_val: default_val
+
         # Instantiate StateManager
         sm = StateManager()
 

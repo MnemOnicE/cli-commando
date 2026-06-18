@@ -74,9 +74,13 @@ def search_command(
                     execute_strace = False
                 else:
                     try:
-                        ans = input(
-                            f"{YELLOW}Warning: '{base_command}' is a custom import. Append '--help' for kinetic audit? (y/N): {RESET}"
-                        ).strip().lower()
+                        ans = (
+                            input(
+                                f"{YELLOW}Warning: '{base_command}' is a custom import. Append '--help' for kinetic audit? (y/N): {RESET}"
+                            )
+                            .strip()
+                            .lower()
+                        )
                     except (EOFError, KeyboardInterrupt):
                         ans = "n"
 
@@ -98,7 +102,7 @@ def search_command(
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
-                    preexec_fn=os.setsid,
+                    start_new_session=True,
                 )
 
                 try:
